@@ -4,31 +4,29 @@ from gui.asset_path import asset_path
 from db.connection import get_conn
 from datetime import datetime
 from tkinter import messagebox
-from pymysql.err import IntegrityError
 
-#When first run, verify the table exists in the MYSQL db
+# When first run, verify the table exists in the MYSQL db
 def ensure_table_exists():
     conn = get_conn()
     with conn.cursor() as cur:
         cur.execute(
             """CREATE TABLE IF NOT EXISTS inventory_items (
                    id INT PRIMARY KEY AUTO_INCREMENT, 
-                   part_name VARCHAR(50), 
+                   part_name VARCHAR(40), 
                    part_number VARCHAR(40), 
                    quantity INT, 
-                   location VARCHAR(40), 
-                   supplier VARCHAR(40), 
-                   supplier_contact VARCHAR(40), 
+                   location VARCHAR(30), 
+                   supplier VARCHAR(30), 
+                   supplier_contact VARCHAR(30), 
                    low_limit INT, 
-                   last_receive_date VARCHAR(30),
-                   last_receive_qty VARCHAR(15),
-                   UNIQUE KEY uniq_part_supplier (part_number, supplier)
+                   last_receive_date VARCHAR(20),
+                   last_receive_qty VARCHAR(15)   
                    )"""
         )
 
 ensure_table_exists()
 
-#Used to populate the treeview form with inventory items. It is called after inv_treeview is created in inventory_frame(). Also add_item()
+# Used to populate the treeview form with inventory items. It is called after inv_treeview is created in inventory_frame(). Also add_update_item()
 def treeview():
     conn = get_conn()
     with conn.cursor() as cur:
@@ -79,18 +77,35 @@ def validate_form_inputs(part_name, part_number, qty, location, supplier, sup_co
         messagebox.showerror("Validation Error", "Low Limit must be a number.")
         return None
 
-    return {
-        "part_name": part_name.strip(),
-        "part_number": part_number.strip(),
-        "quantity": int(qty),
-        "location": location.strip(),
-        "supplier": supplier.strip(),
-        "supplier_contact": sup_contact.strip(),
-        "low_limit": int(low_limit),
-    }
+    return (part_name.strip(),
+            part_number.strip(),
+            int(qty),
+            location.strip(),
+            supplier.strip(),
+            sup_contact.strip(),
+            int(low_limit)
+        )
+
+# Check to make sure a row is selected to either update or delete.
+def row_select_check(part_name, part_number, qty, location, supplier, sup_contact, low_limit, update=False, delete=False):
+    
+    selected = inv_treeview.selection()
+    if not selected:
+        messagebox.showerror('Error','You must select a row.')
+        return
+
+    # Get the currently selected ID of the row.
+    data = inv_treeview.item(selected)
+    id_num = data['values'][0]
+
+    if update:
+        add_update_item(part_name, part_number, qty, location, supplier, sup_contact, low_limit, True, id_num)
+    elif delete:
+        delete_item(part_name, part_number, qty, location, supplier, sup_contact, low_limit, id_num)
 
 
-def add_item(part_name, part_number, qty, location, supplier, sup_contact, low_limit):
+# When all fields are filled and the add button is pressed, this function adds the items to the database.
+def add_update_item(part_name, part_number, qty, location, supplier, sup_contact, low_limit, update=False, cur_id=None):
 
     validated_data = validate_form_inputs(part_name, part_number, qty, location, supplier, sup_contact, low_limit)
 
@@ -98,41 +113,94 @@ def add_item(part_name, part_number, qty, location, supplier, sup_contact, low_l
         return
     else:
         try:
-            today = datetime.today().strftime('%Y-%m-%d')
             conn = get_conn()
             with conn.cursor() as cur:
-                cur.execute(
-                    """INSERT INTO inventory_items (part_name, part_number, quantity, location,
-                    supplier, supplier_contact, low_limit,
-                    last_receive_date, last_receive_qty) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                    (
-                    validated_data["part_name"],
-                    validated_data["part_number"],
-                    validated_data["quantity"],
-                    validated_data["location"],
-                    validated_data["supplier"],
-                    validated_data["supplier_contact"],
-                    validated_data["low_limit"],
-                    today,
-                    validated_data["quantity"])
+                if update:
+                    cur.execute('SELECT * FROM inventory_items WHERE id = %s', (cur_id,))
+                    current_db_data = cur.fetchone()
+                    if not current_db_data:
+                        messagebox.showerror("Error", 'The item does not exist.')
+                        return
+                    current_db_data = current_db_data[1:-2]
+                    
+                    if current_db_data == validated_data:
+                        messagebox.showinfo('No Changes','No Changes Detected.')
+                        return
+                    else:
+                        cur.execute("""UPDATE inventory_items SET part_name=%s, 
+                                    part_number=%s, 
+                                    quantity=%s, 
+                                    location=%s, 
+                                    supplier=%s, 
+                                    supplier_contact=%s, 
+                                    low_limit=%s WHERE id=%s""",
+                                    
+                                    (*validated_data,
+                                    cur_id)
+                                    )
 
-                )
+                        messagebox.showinfo('Success','Update successful.')
+                else:
+
+                    cur.execute(
+                        """SELECT * FROM inventory_items
+                        WHERE part_number = %s AND supplier = %s
+                        """, (validated_data[1], validated_data[4]))
+                    
+                    if cur.fetchone():
+                        messagebox.showerror("Duplicate Error", 'The item already exists.')
+                        return
+
+                    else:
+                        set_date = "New"
+                        received_qty = 0
+
+                        if validated_data[2] > 0:
+                            set_date = datetime.today().strftime('%Y-%m-%d')
+                            received_qty = validated_data[2]
+
+                        cur.execute(
+                            """INSERT INTO inventory_items (part_name, part_number, quantity, location,
+                            supplier, supplier_contact, low_limit,
+                            last_receive_date, last_receive_qty) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                            (
+                            *validated_data,
+                            set_date,
+                            received_qty)
+                        )
+                        messagebox.showinfo('Success','Saved Successfully.')
             conn.commit()
-            messagebox.showinfo('Success','Saved Successfully.')
             treeview()
-        except IntegrityError:
-            messagebox.showerror(
-                "Duplicate Item",
-                "This item already exists with that part number and supplier."
-        )
+        
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
-       
+            
+# Delete the selected row/item.
+def delete_item(part_name, part_number, qty, location, supplier, sup_contact, low_limit):
+    print("Dleted")
 
-# Clears data from all fields when the CLEAR button is pressed.
-def clear_fields(all_fields):
+
+# Clears data from all fields. Highlighted row is also cleared when the CLEAR button is pressed, but not when called from select_data().
+def clear_fields(all_fields, tab=False):
+
     for field in all_fields:
         field.delete(0,tk.END)
+
+    if tab:
+        inv_treeview.selection_remove(inv_treeview.selection())
+
+# When a field in treeview is selected, this function collects the data and applies it to all entry fields (all_fields).
+def select_data(event, all_fields):
+
+    index = inv_treeview.selection()
+    content_dict = inv_treeview.item(index)
+    row_data = content_dict['values']
+
+    clear_fields(all_fields)
+    
+    for i, field in enumerate(all_fields, start=1):
+        field.insert(0, row_data[i])
+    
 
 def inventory_frame(parent):
     global inv_treeview
@@ -159,7 +227,7 @@ def inventory_frame(parent):
     search_frame = tk.Frame(top_frame, bg='white')
     search_frame.pack()
     #Drop Down Menu
-    search_combobox = ttk.Combobox(search_frame, values=('Part Name', 'Part Number', 'Location', 'Supplier'), 
+    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Part Name', 'Part Number', 'Location', 'Supplier'), 
                                                  font=('times new roman', 12), 
                                                  state='readonly'
                                                  )
@@ -192,23 +260,23 @@ def inventory_frame(parent):
     inv_treeview.heading('id', text='ID')
     inv_treeview.heading('part_name', text='Part Name')
     inv_treeview.heading('part_number', text='Part Number')
-    inv_treeview.heading('quantity', text='Quantity')
+    inv_treeview.heading('quantity', text='QTY')
     inv_treeview.heading('location', text='Location')
     inv_treeview.heading('supplier', text='Supplier')
     inv_treeview.heading('supplier_contact', text='Supplier Contact')
-    inv_treeview.heading('low_limit  ', text='Low Limit')
+    inv_treeview.heading('low_limit  ', text='Low')
     inv_treeview.heading('last_receive_date', text='LRD')
     inv_treeview.heading('last_receive_qty', text='LRQ')
     
-    inv_treeview.column('id', width=50)
+    inv_treeview.column('id', width=70)
     inv_treeview.column('part_name', width=175)
-    inv_treeview.column('part_number', width=120)
-    inv_treeview.column('quantity', width=100)
+    inv_treeview.column('part_number', width=150)
+    inv_treeview.column('quantity', width=70)
     inv_treeview.column('location', width=100)
-    inv_treeview.column('supplier', width=120)
-    inv_treeview.column('supplier_contact', width=175)
-    inv_treeview.column('low_limit  ', width=100)
-    inv_treeview.column('last_receive_date', width=120)
+    inv_treeview.column('supplier', width=150)
+    inv_treeview.column('supplier_contact', width=200)
+    inv_treeview.column('low_limit  ', width=70)
+    inv_treeview.column('last_receive_date', width=100)
     inv_treeview.column('last_receive_qty', width=70)
 
     #call treeview function to display the items.
@@ -263,7 +331,7 @@ def inventory_frame(parent):
                                          fg='white', 
                                          width= 10, 
                                          cursor='hand2', 
-                                         command=lambda: add_item(part_name_entry.get(), 
+                                         command=lambda: add_update_item(part_name_entry.get(), 
                                                                   part_num_entry.get(), 
                                                                   qty_entry.get(), 
                                                                   loc_entry.get(), 
@@ -273,12 +341,41 @@ def inventory_frame(parent):
                                                                   )
     add_button.grid(row=0, column=0, padx=20)
 
-    update_button = tk.Button(button_frame, text='Update', font=('times new roman', 12), bg='#0f4d7d', fg='white', width= 10, cursor='hand2')
+    update_button = tk.Button(button_frame, text='Update', 
+                                            font=('times new roman', 12), 
+                                            bg='#0f4d7d', 
+                                            fg='white', 
+                                            width= 10, 
+                                            cursor='hand2', 
+                                            command=lambda: row_select_check(part_name_entry.get(), 
+                                                                  part_num_entry.get(), 
+                                                                  qty_entry.get(), 
+                                                                  loc_entry.get(), 
+                                                                  sup_entry.get(), 
+                                                                  sup_contact_entry.get(), 
+                                                                  low_entry.get(),
+                                                                  update=True)
+                                                                  )
     update_button.grid(row=0, column=1, padx=20)
 
-    delete_button = tk.Button(button_frame, text='Delete', font=('times new roman', 12), bg='#0f4d7d', fg='white', width= 10, cursor='hand2')
+    delete_button = tk.Button(button_frame, text='Delete', 
+                                            font=('times new roman', 12), 
+                                            bg='#0f4d7d', 
+                                            fg='white', 
+                                            width= 10, 
+                                            cursor='hand2',
+                                            command=lambda: row_select_check(part_name_entry.get(), 
+                                                                  part_num_entry.get(), 
+                                                                  qty_entry.get(), 
+                                                                  loc_entry.get(), 
+                                                                  sup_entry.get(), 
+                                                                  sup_contact_entry.get(), 
+                                                                  low_entry.get(),
+                                                                  delete=True)
+                                                                  )
     delete_button.grid(row=0, column=2, padx=20)
-
+    
+    # Clicking the clear button triggers the clear_fields() function and removes all data from the entry fields.
     clear_button = tk.Button(button_frame, text='Clear', 
                                            font=('times new roman', 12), 
                                            bg='#0f4d7d', 
@@ -292,8 +389,22 @@ def inventory_frame(parent):
                                                                   loc_entry, 
                                                                   sup_entry, 
                                                                   sup_contact_entry, 
-                                                                  low_entry)))
+                                                                  low_entry,
+                                                                  ), True)
+                                                                  )
     clear_button.grid(row=0, column=3, padx=20)
+
+    # When a field in treeview is clicked, the select_data() function fills the entry fields.
+    inv_treeview.bind('<ButtonRelease-1>', lambda event: select_data(
+                                                            event,
+                                                            (part_name_entry, 
+                                                            part_num_entry, 
+                                                            qty_entry, 
+                                                            loc_entry, 
+                                                            sup_entry, 
+                                                            sup_contact_entry, 
+                                                            low_entry))
+                                                            )
 
 
     return inv_frame
