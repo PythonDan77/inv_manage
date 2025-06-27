@@ -1,12 +1,141 @@
-import os
 import tkinter as tk
 from tkinter import ttk
+from gui.asset_path import asset_path
+from db.connection import get_conn
+from datetime import datetime
+from tkinter import messagebox
+from pymysql.err import IntegrityError
 
-def asset_path(filename:str) -> str:
-    base_dir = os.path.dirname(os.path.dirname(__file__))
-    return os.path.join(base_dir, "assets" , filename)
+#When first run, verify the table exists in the MYSQL db
+def ensure_table_exists():
+    conn = get_conn()
+    with conn.cursor() as cur:
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS inventory_items (
+                   id INT PRIMARY KEY AUTO_INCREMENT, 
+                   part_name VARCHAR(50), 
+                   part_number VARCHAR(40), 
+                   quantity INT, 
+                   location VARCHAR(40), 
+                   supplier VARCHAR(40), 
+                   supplier_contact VARCHAR(40), 
+                   low_limit INT, 
+                   last_receive_date VARCHAR(30),
+                   last_receive_qty VARCHAR(15),
+                   UNIQUE KEY uniq_part_supplier (part_number, supplier)
+                   )"""
+        )
+
+ensure_table_exists()
+
+#Used to populate the treeview form with inventory items. It is called after inv_treeview is created in inventory_frame(). Also add_item()
+def treeview():
+    conn = get_conn()
+    with conn.cursor() as cur:
+        cur.execute('SELECT * FROM inventory_items')
+        all_records = cur.fetchall()
+        inv_treeview.delete(*inv_treeview.get_children())
+        for record in all_records:
+            inv_treeview.insert('', 'end', values=record)
+
+# Function used to verify all data in fields is present and of the right type.
+def validate_form_inputs(part_name, part_number, qty, location, supplier, sup_contact, low_limit):
+    
+    if not part_name:
+        messagebox.showerror('Empty Field', 'Part Name cannot be empty.')
+        return None
+    
+    if not part_number:
+        messagebox.showerror('Empty Field', 'Part Number cannot be empty.')
+        return None
+    
+    if not qty:
+        messagebox.showerror('Empty Field', 'Quantity cannot be empty.')
+        return None
+    try:
+        qty = int(qty)
+    except ValueError:
+        messagebox.showerror("Validation Error", "Quantity must be a number.")
+        return None
+
+    if not location:
+        messagebox.showerror('Empty Field', 'Location cannot be empty.')
+        return None
+
+    if not supplier:
+        messagebox.showerror('Empty Field', 'Supplier cannot be empty.')
+        return None
+    
+    if not sup_contact:
+        messagebox.showerror('Empty Field', 'Supplier Contact cannot be empty.')
+        return None
+
+    if not low_limit:
+        messagebox.showerror('Empty Field', 'Low Limit cannot be empty.')
+        return None
+    try:
+        low_limit = int(low_limit)
+    except ValueError:
+        messagebox.showerror("Validation Error", "Low Limit must be a number.")
+        return None
+
+    return {
+        "part_name": part_name.strip(),
+        "part_number": part_number.strip(),
+        "quantity": int(qty),
+        "location": location.strip(),
+        "supplier": supplier.strip(),
+        "supplier_contact": sup_contact.strip(),
+        "low_limit": int(low_limit),
+    }
+
+
+def add_item(part_name, part_number, qty, location, supplier, sup_contact, low_limit):
+
+    validated_data = validate_form_inputs(part_name, part_number, qty, location, supplier, sup_contact, low_limit)
+
+    if not validated_data:
+        return
+    else:
+        try:
+            today = datetime.today().strftime('%Y-%m-%d')
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO inventory_items (part_name, part_number, quantity, location,
+                    supplier, supplier_contact, low_limit,
+                    last_receive_date, last_receive_qty) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (
+                    validated_data["part_name"],
+                    validated_data["part_number"],
+                    validated_data["quantity"],
+                    validated_data["location"],
+                    validated_data["supplier"],
+                    validated_data["supplier_contact"],
+                    validated_data["low_limit"],
+                    today,
+                    validated_data["quantity"])
+
+                )
+            conn.commit()
+            messagebox.showinfo('Success','Saved Successfully.')
+            treeview()
+        except IntegrityError:
+            messagebox.showerror(
+                "Duplicate Item",
+                "This item already exists with that part number and supplier."
+        )
+        except Exception as e:
+            messagebox.showerror("Database Error", str(e))
+       
+
+# Clears data from all fields when the CLEAR button is pressed.
+def clear_fields(all_fields):
+    for field in all_fields:
+        field.delete(0,tk.END)
 
 def inventory_frame(parent):
+    global inv_treeview
 
     inv_frame = tk.Frame(parent, width=1075, height=650, bg='white')
     inv_frame.place(x=226, y=100)
@@ -50,7 +179,7 @@ def inventory_frame(parent):
     horizontal_scrollbar = tk.Scrollbar(top_frame, orient='horizontal')
     vertical_scrollbar = tk.Scrollbar(top_frame, orient='vertical')
     
-    inv_treeview = ttk.Treeview(top_frame, columns=('Part Name', 'Part Number', 'Quantity', 'Location','Supplier', 'Supplier Contact', 'Low Limit', 'Last Receive Date', 'Last Receive Qty'), 
+    inv_treeview = ttk.Treeview(top_frame, columns=('id', 'part_name', 'part_number', 'quantity', 'location','supplier', 'supplier_contact', 'low_limit  ', 'last_receive_date', 'last_receive_qty'), 
                                            show='headings',
                                            yscrollcommand=vertical_scrollbar.set,
                                            xscrollcommand=horizontal_scrollbar.set)
@@ -59,27 +188,32 @@ def inventory_frame(parent):
     horizontal_scrollbar.config(command=inv_treeview.xview)
     vertical_scrollbar.config(command=inv_treeview.yview)
     inv_treeview.pack(pady= (10, 0))
-
-    inv_treeview.heading('Part Name', text='Part Name')
-    inv_treeview.heading('Part Number', text='Part Number')
-    inv_treeview.heading('Quantity', text='Quantity')
-    inv_treeview.heading('Location', text='Location')
-    inv_treeview.heading('Supplier', text='Supplier')
-    inv_treeview.heading('Supplier Contact', text='Supplier Contact')
-    inv_treeview.heading('Low Limit', text='Low Limit')
-    inv_treeview.heading('Last Receive Date', text='LRD')
-    inv_treeview.heading('Last Receive Qty', text='LRQ')
-
-    inv_treeview.column('Part Name', width=120)
-    inv_treeview.column('Part Number', width=120)
-    inv_treeview.column('Quantity', width=100)
-    inv_treeview.column('Location', width=100)
-    inv_treeview.column('Supplier', width=120)
-    inv_treeview.column('Supplier Contact', width=150)
-    inv_treeview.column('Low Limit', width=100)
-    inv_treeview.column('Last Receive Date', width=120)
-    inv_treeview.column('Last Receive Qty', width=100)
     
+    inv_treeview.heading('id', text='ID')
+    inv_treeview.heading('part_name', text='Part Name')
+    inv_treeview.heading('part_number', text='Part Number')
+    inv_treeview.heading('quantity', text='Quantity')
+    inv_treeview.heading('location', text='Location')
+    inv_treeview.heading('supplier', text='Supplier')
+    inv_treeview.heading('supplier_contact', text='Supplier Contact')
+    inv_treeview.heading('low_limit  ', text='Low Limit')
+    inv_treeview.heading('last_receive_date', text='LRD')
+    inv_treeview.heading('last_receive_qty', text='LRQ')
+    
+    inv_treeview.column('id', width=50)
+    inv_treeview.column('part_name', width=175)
+    inv_treeview.column('part_number', width=120)
+    inv_treeview.column('quantity', width=100)
+    inv_treeview.column('location', width=100)
+    inv_treeview.column('supplier', width=120)
+    inv_treeview.column('supplier_contact', width=175)
+    inv_treeview.column('low_limit  ', width=100)
+    inv_treeview.column('last_receive_date', width=120)
+    inv_treeview.column('last_receive_qty', width=70)
+
+    #call treeview function to display the items.
+    treeview()
+
     #Lower Section of Page
     detail_frame = tk.Frame(inv_frame, width=1075, height=300, bg='white')
     detail_frame.place(x=0, y=352, relwidth=1)
@@ -123,7 +257,20 @@ def inventory_frame(parent):
     button_frame= tk.Frame(inv_frame, bg='white')
     button_frame.place(x=180, y=550, relwidth=1)
 
-    add_button = tk.Button(button_frame, text='Add', font=('times new roman', 12), bg='#0f4d7d', fg='white', width= 10, cursor='hand2')
+    add_button = tk.Button(button_frame, text='Add', 
+                                         font=('times new roman', 12), 
+                                         bg='#0f4d7d', 
+                                         fg='white', 
+                                         width= 10, 
+                                         cursor='hand2', 
+                                         command=lambda: add_item(part_name_entry.get(), 
+                                                                  part_num_entry.get(), 
+                                                                  qty_entry.get(), 
+                                                                  loc_entry.get(), 
+                                                                  sup_entry.get(), 
+                                                                  sup_contact_entry.get(), 
+                                                                  low_entry.get())
+                                                                  )
     add_button.grid(row=0, column=0, padx=20)
 
     update_button = tk.Button(button_frame, text='Update', font=('times new roman', 12), bg='#0f4d7d', fg='white', width= 10, cursor='hand2')
@@ -132,7 +279,20 @@ def inventory_frame(parent):
     delete_button = tk.Button(button_frame, text='Delete', font=('times new roman', 12), bg='#0f4d7d', fg='white', width= 10, cursor='hand2')
     delete_button.grid(row=0, column=2, padx=20)
 
-    clear_button = tk.Button(button_frame, text='Clear', font=('times new roman', 12), bg='#0f4d7d', fg='white', width= 10, cursor='hand2')
+    clear_button = tk.Button(button_frame, text='Clear', 
+                                           font=('times new roman', 12), 
+                                           bg='#0f4d7d', 
+                                           fg='white', 
+                                           width= 10, 
+                                           cursor='hand2', 
+                                           command=lambda: clear_fields((
+                                                                  part_name_entry, 
+                                                                  part_num_entry, 
+                                                                  qty_entry, 
+                                                                  loc_entry, 
+                                                                  sup_entry, 
+                                                                  sup_contact_entry, 
+                                                                  low_entry)))
     clear_button.grid(row=0, column=3, padx=20)
 
 

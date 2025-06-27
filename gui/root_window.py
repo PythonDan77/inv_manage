@@ -1,10 +1,6 @@
-import os
 import tkinter as tk
 from gui.inventory_frame import inventory_frame
-
-def asset_path(filename:str) -> str:
-    base_dir = os.path.dirname(os.path.dirname(__file__))
-    return os.path.join(base_dir, "assets" , filename)
+from gui.asset_path import asset_path
 
 def create_main_window():
 
