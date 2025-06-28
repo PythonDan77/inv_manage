@@ -239,12 +239,15 @@ def search_all(search_entry, search_combobox):
     search_entry.delete(0,'end')
     search_combobox.set('Select...')
 
+# Clear the highlight from the combobox. Trigger in the main function at the bottom.
+def on_select(event, combobox):
+    combobox.selection_clear()
 
 def inventory_frame(parent):
     global inv_treeview
 
-    inv_frame = tk.Frame(parent, width=1075, height=650, bg='white')
-    inv_frame.place(x=226, y=100)
+    inv_frame = tk.Frame(parent, width=1100, height=650, bg='white')
+    inv_frame.place(x=201, y=100)
 
     heading_label = tk.Label(inv_frame, text='Inventory Detail', font=('times new roman', 16, 'bold'), bg='#0f4d7d', fg='white')
     heading_label.place(x=0, y=0, relwidth=1)
@@ -457,5 +460,6 @@ def inventory_frame(parent):
                                                             low_entry))
                                                             )
 
+    search_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, search_combobox))
 
     return inv_frame
