@@ -174,10 +174,22 @@ def add_update_item(part_name, part_number, qty, location, supplier, sup_contact
         
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
-            
+
 # Delete the selected row/item.
-def delete_item(part_name, part_number, qty, location, supplier, sup_contact, low_limit):
-    print("Dleted")
+def delete_item(part_name, part_number, qty, location, supplier, sup_contact, low_limit, id_num):
+
+    result = messagebox.askyesno('Confirm', 'Do you want to delete this record?')
+    if result:
+        try:
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute('DELETE FROM inventory_items WHERE id=%s',(id_num,))
+            conn.commit()
+            treeview()
+            messagebox.showinfo('Success','Deleted Successfully.')
+            clear_fields((part_name, part_number, qty, location, supplier, sup_contact, low_limit))
+        except Exception as e:
+            messagebox.showerror("Database Error", str(e))
 
 
 # Clears data from all fields. Highlighted row is also cleared when the CLEAR button is pressed, but not when called from select_data().
@@ -200,7 +212,25 @@ def select_data(event, all_fields):
     
     for i, field in enumerate(all_fields, start=1):
         field.insert(0, row_data[i])
-    
+
+def search_item(search_option, value):
+    if search_option == 'Select..':
+        messagebox.showerror('Error','Select an option.')
+    elif not value:
+        messagebox.showerror('Error','Enter a value to search.')
+    else:
+        try:
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute(f'SELECT * FROM inventory_items WHERE {search_option} LIKE %s', f'%{value}%')
+                result = cur.fetchall()
+                inv_treeview.delete(*inv_treeview.get_children())
+                for record in result:
+                    inv_treeview.insert('', 'end', values=record)
+
+        except Exception as e:
+            messagebox.showerror("Database Error", str(e))
+
 
 def inventory_frame(parent):
     global inv_treeview
@@ -227,7 +257,7 @@ def inventory_frame(parent):
     search_frame = tk.Frame(top_frame, bg='white')
     search_frame.pack()
     #Drop Down Menu
-    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Part Name', 'Part Number', 'Location', 'Supplier'), 
+    search_combobox = ttk.Combobox(search_frame, values=('id', 'part_name', 'part_number', 'location', 'supplier'), 
                                                  font=('times new roman', 12), 
                                                  state='readonly'
                                                  )
@@ -238,7 +268,13 @@ def inventory_frame(parent):
     search_entry = tk.Entry(search_frame, font=('times new roman', 12), bg='lightyellow')
     search_entry.grid(row=0, column=1)
 
-    search_button = tk.Button(search_frame, text='Search', font=('times new roman', 12), bg='#0f4d7d', fg='white', width= 10, cursor='hand2')
+    search_button = tk.Button(search_frame, text='Search', 
+                                            font=('times new roman', 12), 
+                                            bg='#0f4d7d', 
+                                            fg='white', 
+                                            width= 10, 
+                                            cursor='hand2',
+                                            command= lambda: search_item(search_combobox.get(),search_entry.get()))
     search_button.grid(row=0, column=2, padx=20)
 
     show_button = tk.Button(search_frame, text='Show All', font=('times new roman', 12), bg='#0f4d7d', fg='white', width= 10, cursor='hand2')
@@ -364,15 +400,16 @@ def inventory_frame(parent):
                                             fg='white', 
                                             width= 10, 
                                             cursor='hand2',
-                                            command=lambda: row_select_check(part_name_entry.get(), 
-                                                                  part_num_entry.get(), 
-                                                                  qty_entry.get(), 
-                                                                  loc_entry.get(), 
-                                                                  sup_entry.get(), 
-                                                                  sup_contact_entry.get(), 
-                                                                  low_entry.get(),
-                                                                  delete=True)
-                                                                  )
+                                            command=lambda: row_select_check(
+                                                                part_name_entry, 
+                                                                part_num_entry, 
+                                                                qty_entry, 
+                                                                loc_entry, 
+                                                                sup_entry, 
+                                                                sup_contact_entry, 
+                                                                low_entry,
+                                                                delete=True)
+                                                                )
     delete_button.grid(row=0, column=2, padx=20)
     
     # Clicking the clear button triggers the clear_fields() function and removes all data from the entry fields.
