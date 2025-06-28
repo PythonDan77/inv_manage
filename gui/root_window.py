@@ -1,5 +1,6 @@
 import tkinter as tk
 from gui.inventory_frame import inventory_frame
+from gui.supplier_frame import supplier_frame
 from gui.asset_path import asset_path
 
 def create_main_window():
@@ -16,6 +17,7 @@ def create_main_window():
     ic_png = tk.PhotoImage(file=asset_path("ic.png"))
     cart_png = tk.PhotoImage(file=asset_path("cart.png"))
     truck_png = tk.PhotoImage(file=asset_path("shipping.png"))
+    supplier_png = tk.PhotoImage(file=asset_path("supplier.png"))
 
     #Small png and title bar
     titleLabel = tk.Label(root, text='         Inventory Management', 
@@ -65,6 +67,16 @@ def create_main_window():
     purchasing_button = tk.Button(leftFrame, text='Purchasing', font=('times new roman', 20, 'bold'), image=ic_png, compound='left', anchor='w')
     purchasing_button.image = ic_png
     purchasing_button.pack(fill='x')
+
+    supplier_button = tk.Button(leftFrame, text='Suppliers', 
+                                           font=('times new roman', 20, 'bold'), 
+                                           image=supplier_png, 
+                                           compound='left', 
+                                           anchor='w',
+                                           command=lambda: supplier_frame(root)
+                                           )
+    supplier_button.image = supplier_png
+    supplier_button.pack(fill='x')
 
     #Sales button with cart png(25 px)
     sales_button = tk.Button(leftFrame, text='Sales', font=('times new roman', 20, 'bold'), image=cart_png, compound='left', anchor='w')

@@ -213,6 +213,7 @@ def select_data(event, all_fields):
     for i, field in enumerate(all_fields, start=1):
         field.insert(0, row_data[i])
 
+# Function verifies data has been used to search the database and then retrieves the data.
 def search_item(search_option, value):
     if search_option == 'Select..':
         messagebox.showerror('Error','Select an option.')
@@ -220,6 +221,7 @@ def search_item(search_option, value):
         messagebox.showerror('Error','Enter a value to search.')
     else:
         try:
+            search_option = search_option.replace(' ', '_')
             conn = get_conn()
             with conn.cursor() as cur:
                 cur.execute(f'SELECT * FROM inventory_items WHERE {search_option} LIKE %s', f'%{value}%')
@@ -230,6 +232,12 @@ def search_item(search_option, value):
 
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
+
+# Reloads all data and resets the search options.
+def search_all(search_entry, search_combobox):
+    treeview()
+    search_entry.delete(0,'end')
+    search_combobox.set('Select...')
 
 
 def inventory_frame(parent):
@@ -257,7 +265,7 @@ def inventory_frame(parent):
     search_frame = tk.Frame(top_frame, bg='white')
     search_frame.pack()
     #Drop Down Menu
-    search_combobox = ttk.Combobox(search_frame, values=('id', 'part_name', 'part_number', 'location', 'supplier'), 
+    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Part name', 'Part number', 'Location', 'Supplier'), 
                                                  font=('times new roman', 12), 
                                                  state='readonly'
                                                  )
@@ -277,7 +285,13 @@ def inventory_frame(parent):
                                             command= lambda: search_item(search_combobox.get(),search_entry.get()))
     search_button.grid(row=0, column=2, padx=20)
 
-    show_button = tk.Button(search_frame, text='Show All', font=('times new roman', 12), bg='#0f4d7d', fg='white', width= 10, cursor='hand2')
+    show_button = tk.Button(search_frame, text='Show All', 
+                                          font=('times new roman', 12), 
+                                          bg='#0f4d7d', 
+                                          fg='white', 
+                                          width= 10, 
+                                          cursor='hand2',
+                                          command= lambda: search_all(search_entry, search_combobox))
     show_button.grid(row=0, column=3)
 
     horizontal_scrollbar = tk.Scrollbar(top_frame, orient='horizontal')
@@ -322,37 +336,37 @@ def inventory_frame(parent):
     detail_frame = tk.Frame(inv_frame, width=1075, height=300, bg='white')
     detail_frame.place(x=0, y=352, relwidth=1)
 
-    part_name_label = tk.Label(detail_frame, text='Part Name', font=('times new roman', 10), bg='white')
+    part_name_label = tk.Label(detail_frame, text='Part Name', font=('times new roman', 10, 'bold'), bg='white')
     part_name_label.grid(row=0, column=0,padx=10, pady=20)
     part_name_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
     part_name_entry.grid(row=0, column=1, padx=10, pady=20 )
 
-    part_num_label = tk.Label(detail_frame, text='Part Number', font=('times new roman', 10), bg='white')
+    part_num_label = tk.Label(detail_frame, text='Part Number', font=('times new roman', 10, 'bold'), bg='white')
     part_num_label.grid(row=0, column=2, padx=10, pady=20)
     part_num_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
     part_num_entry.grid(row=0, column=3, padx=10, pady=20)
 
-    qty_label = tk.Label(detail_frame, text='Quantity', font=('times new roman', 10), bg='white')
+    qty_label = tk.Label(detail_frame, text='Quantity', font=('times new roman', 10, 'bold'), bg='white')
     qty_label.grid(row=0, column=4, padx=10, pady=20)
     qty_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
     qty_entry.grid(row=0, column=5, padx=10, pady=20)
 
-    loc_label = tk.Label(detail_frame, text='Location', font=('times new roman', 10), bg='white')
+    loc_label = tk.Label(detail_frame, text='Location', font=('times new roman', 10, 'bold'), bg='white')
     loc_label.grid(row=1, column=0, padx=10, pady=10)
     loc_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
     loc_entry.grid(row=1, column=1, padx=10, pady=10)
 
-    sup_label = tk.Label(detail_frame, text='Supplier', font=('times new roman', 10), bg='white')
+    sup_label = tk.Label(detail_frame, text='Supplier', font=('times new roman', 10, 'bold'), bg='white')
     sup_label.grid(row=1, column=2, padx=10, pady=10)
     sup_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
     sup_entry.grid(row=1, column=3, padx=10, pady=10)
 
-    sup_contact_label = tk.Label(detail_frame, text='Supplier Contact', font=('times new roman', 10), bg='white')
+    sup_contact_label = tk.Label(detail_frame, text='Supplier Contact', font=('times new roman', 10, 'bold'), bg='white')
     sup_contact_label.grid(row=1, column=4, padx=10, pady=10)
     sup_contact_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
     sup_contact_entry.grid(row=1, column=5, padx=10, pady=10)
 
-    low_label = tk.Label(detail_frame, text='Low Level', font=('times new roman', 10), bg='white')
+    low_label = tk.Label(detail_frame, text='Low Level', font=('times new roman', 10, 'bold'), bg='white')
     low_label.grid(row=2, column=0, padx=10, pady=20)
     low_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
     low_entry.grid(row=2, column=1, padx=10, pady=20)

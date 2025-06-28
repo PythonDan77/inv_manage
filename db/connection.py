@@ -25,23 +25,3 @@ def get_conn():
         return None
 
     return _conn
-
-
-# DB_NAME = config.DBNAME
-
-# try:
-#     conn = pymysql.connect(
-#         host=config.HOST,
-#         user=config.USER,
-#         password=config.PASSWORD
-#     )
-#     cursor = conn.cursor()
-# except Exception as e:
-#     messagebox.showerror('Error', f'Database connection failed: {str(e)}')
-
-# db_query = f"CREATE DATABASE IF NOT EXISTS {DB_NAME}"
-# cursor.execute(db_query)
-# conn.select_db(DB_NAME)
-
-# def get_conn():
-#     return conn
