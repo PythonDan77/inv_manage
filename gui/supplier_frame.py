@@ -5,22 +5,22 @@ from db.connection import get_conn
 from tkinter import messagebox
 
 # When first run, verify the table exists in the MYSQL db
-def ensure_table_exists():
-    conn = get_conn()
-    with conn.cursor() as cur:
-        cur.execute(
-            """CREATE TABLE IF NOT EXISTS supplier_list (
-                   id INT PRIMARY KEY AUTO_INCREMENT, 
-                   name VARCHAR(40), 
-                   contact VARCHAR(20),
-                   phone_number VARCHAR(20), 
-                   email VARCHAR(30),
-                   country VARCHAR(20),
-                   address VARCHAR(50)   
-                   )"""
-        )
+# def ensure_table_exists():
+#     conn = get_conn()
+#     with conn.cursor() as cur:
+#         cur.execute(
+#             """CREATE TABLE IF NOT EXISTS supplier_list (
+#                    id INT PRIMARY KEY AUTO_INCREMENT, 
+#                    name VARCHAR(40), 
+#                    contact VARCHAR(20),
+#                    phone_number VARCHAR(20), 
+#                    email VARCHAR(30),
+#                    country VARCHAR(20),
+#                    address VARCHAR(50)   
+#                    )"""
+#         )
 
-ensure_table_exists()
+# ensure_table_exists()
 
 # Used to populate the treeview form with inventory items. It is called after inv_treeview is created in inventory_frame(). Also add_update_item()
 def treeview():
@@ -160,13 +160,14 @@ def clear_fields(all_fields, tab=False):
 def select_data(event, all_fields):
 
     index = sup_treeview.selection()
-    content_dict = sup_treeview.item(index)
-    row_data = content_dict['values']
+    if index:
+        content_dict = sup_treeview.item(index)
+        row_data = content_dict['values']
 
-    clear_fields(all_fields)
-    
-    for i, field in enumerate(all_fields, start=1):
-        field.insert(0, row_data[i])
+        clear_fields(all_fields)
+        
+        for i, field in enumerate(all_fields, start=1):
+            field.insert(0, row_data[i])
 
 # Function verifies data has been used to search the database and then retrieves the data.
 def search_item(search_option, value):

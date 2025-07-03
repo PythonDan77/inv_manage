@@ -6,25 +6,25 @@ from datetime import datetime
 from tkinter import messagebox
 
 # When first run, verify the table exists in the MYSQL db
-def ensure_table_exists():
-    conn = get_conn()
-    with conn.cursor() as cur:
-        cur.execute(
-            """CREATE TABLE IF NOT EXISTS inventory_items (
-                   id INT PRIMARY KEY AUTO_INCREMENT, 
-                   part_name VARCHAR(40), 
-                   part_number VARCHAR(40), 
-                   quantity INT, 
-                   location VARCHAR(30), 
-                   supplier VARCHAR(30), 
-                   supplier_contact VARCHAR(30), 
-                   low_limit INT, 
-                   last_receive_date VARCHAR(20),
-                   last_receive_qty VARCHAR(15)   
-                   )"""
-        )
+# def ensure_table_exists():
+#     conn = get_conn()
+#     with conn.cursor() as cur:
+#         cur.execute(
+#             """CREATE TABLE IF NOT EXISTS inventory_items (
+#                    id INT PRIMARY KEY AUTO_INCREMENT, 
+#                    part_name VARCHAR(40), 
+#                    part_number VARCHAR(40), 
+#                    quantity INT, 
+#                    location VARCHAR(30), 
+#                    supplier VARCHAR(30),  
+#                    low_limit INT,
+#                    item_type VARCHAR(20),
+#                    last_receive_date VARCHAR(20),
+#                    last_receive_qty VARCHAR(15)   
+#                    )"""
+#         )
 
-ensure_table_exists()
+# ensure_table_exists()
 
 # Used to populate the treeview form with inventory items. It is called after inv_treeview is created in inventory_frame(). Also add_update_item()
 def treeview():
@@ -37,57 +37,63 @@ def treeview():
             inv_treeview.insert('', 'end', values=record)
 
 # Function used to verify all data in fields is present and of the right type.
-def validate_form_inputs(part_name, part_number, qty, location, supplier, sup_contact, low_limit):
+def validate_form_inputs(part_name, part_number, qty, location, supplier, low_limit, item_type):
     
+    if item_type == "Select..":
+        messagebox.showerror('Empty Field', 'Select an item type.')
+        return None
+
     if not part_name:
         messagebox.showerror('Empty Field', 'Part Name cannot be empty.')
         return None
-    
+
     if not part_number:
-        messagebox.showerror('Empty Field', 'Part Number cannot be empty.')
-        return None
-    
+            messagebox.showerror('Empty Field', 'Part Number cannot be empty.')
+            return None
+
+    if not supplier:
+            messagebox.showerror('Empty Field', 'Supplier cannot be empty.')
+            return None
+
     if not qty:
-        messagebox.showerror('Empty Field', 'Quantity cannot be empty.')
-        return None
+            messagebox.showerror('Empty Field', 'Quantity cannot be empty.')
+            return None
     try:
         qty = int(qty)
     except ValueError:
         messagebox.showerror("Validation Error", "Quantity must be a number.")
         return None
-
-    if not location:
-        messagebox.showerror('Empty Field', 'Location cannot be empty.')
-        return None
-
-    if not supplier:
-        messagebox.showerror('Empty Field', 'Supplier cannot be empty.')
-        return None
     
-    if not sup_contact:
-        messagebox.showerror('Empty Field', 'Supplier Contact cannot be empty.')
-        return None
+    if item_type == "Stocked":
 
-    if not low_limit:
-        messagebox.showerror('Empty Field', 'Low Limit cannot be empty.')
-        return None
-    try:
-        low_limit = int(low_limit)
-    except ValueError:
-        messagebox.showerror("Validation Error", "Low Limit must be a number.")
-        return None
+        if not location:
+            messagebox.showerror('Empty Field', 'Location cannot be empty.')
+            return None
+
+        if not low_limit:
+            messagebox.showerror('Empty Field', 'Low Limit cannot be empty.')
+            return None
+
+        try:
+            low_limit = int(low_limit)
+        except ValueError:
+            messagebox.showerror("Validation Error", "Low Limit must be a number.")
+            return None
+
+    if item_type == "Consumable":
+        low_limit = 0
 
     return (part_name.strip(),
             part_number.strip(),
             int(qty),
             location.strip(),
             supplier.strip(),
-            sup_contact.strip(),
-            int(low_limit)
+            int(low_limit),
+            item_type.strip()
         )
 
 # Check to make sure a row is selected to either update or delete.
-def row_select_check(part_name, part_number, qty, location, supplier, sup_contact, low_limit, update=False, delete=False):
+def row_select_check(part_name, part_number, qty, location, supplier, low_limit, item_type, update=False, delete=False):
     
     selected = inv_treeview.selection()
     if not selected:
@@ -99,15 +105,15 @@ def row_select_check(part_name, part_number, qty, location, supplier, sup_contac
     id_num = data['values'][0]
 
     if update:
-        add_update_item(part_name, part_number, qty, location, supplier, sup_contact, low_limit, True, id_num)
+        add_update_item(part_name, part_number, qty, location, supplier, low_limit, item_type, True, id_num)
     elif delete:
-        delete_item(part_name, part_number, qty, location, supplier, sup_contact, low_limit, id_num)
+        delete_item(part_name, part_number, qty, location, supplier, low_limit, item_type, id_num)
 
 
 # When all fields are filled and the add button is pressed, this function adds the items to the database.
-def add_update_item(part_name, part_number, qty, location, supplier, sup_contact, low_limit, update=False, cur_id=None):
+def add_update_item(part_name, part_number, qty, location, supplier, low_limit, item_type, update=False, cur_id=None):
 
-    validated_data = validate_form_inputs(part_name, part_number, qty, location, supplier, sup_contact, low_limit)
+    validated_data = validate_form_inputs(part_name, part_number, qty, location, supplier, low_limit, item_type)
 
     if not validated_data:
         return
@@ -131,9 +137,9 @@ def add_update_item(part_name, part_number, qty, location, supplier, sup_contact
                                     part_number=%s, 
                                     quantity=%s, 
                                     location=%s, 
-                                    supplier=%s, 
-                                    supplier_contact=%s, 
-                                    low_limit=%s WHERE id=%s""",
+                                    supplier=%s,  
+                                    low_limit=%s,
+                                    item_type=%s WHERE id=%s""",
                                     
                                     (*validated_data,
                                     cur_id)
@@ -161,7 +167,7 @@ def add_update_item(part_name, part_number, qty, location, supplier, sup_contact
 
                         cur.execute(
                             """INSERT INTO inventory_items (part_name, part_number, quantity, location,
-                            supplier, supplier_contact, low_limit,
+                            supplier, low_limit, item_type,
                             last_receive_date, last_receive_qty) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                             (
                             *validated_data,
@@ -176,7 +182,7 @@ def add_update_item(part_name, part_number, qty, location, supplier, sup_contact
             messagebox.showerror("Database Error", str(e))
 
 # Delete the selected row/item.
-def delete_item(part_name, part_number, qty, location, supplier, sup_contact, low_limit, id_num):
+def delete_item(part_name, part_number, qty, location, supplier, low_limit, item_type, id_num):
 
     result = messagebox.askyesno('Confirm', 'Do you want to delete this record?')
     if result:
@@ -187,31 +193,36 @@ def delete_item(part_name, part_number, qty, location, supplier, sup_contact, lo
             conn.commit()
             treeview()
             messagebox.showinfo('Success','Deleted Successfully.')
-            clear_fields((part_name, part_number, qty, location, supplier, sup_contact, low_limit))
+            clear_fields((part_name, part_number, qty, location, supplier, low_limit), combobox=item_type)
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
 
 
 # Clears data from all fields. Highlighted row is also cleared when the CLEAR button is pressed, but not when called from select_data().
-def clear_fields(all_fields, tab=False):
+def clear_fields(all_fields, combobox, tab=False):
 
     for field in all_fields:
         field.delete(0,tk.END)
+
+    combobox.set("Select..")
 
     if tab:
         inv_treeview.selection_remove(inv_treeview.selection())
 
 # When a field in treeview is selected, this function collects the data and applies it to all entry fields (all_fields).
-def select_data(event, all_fields):
+def select_data(event, all_fields, combobox):
 
     index = inv_treeview.selection()
-    content_dict = inv_treeview.item(index)
-    row_data = content_dict['values']
+    if index:
+        content_dict = inv_treeview.item(index)
+        row_data = content_dict['values']
 
-    clear_fields(all_fields)
-    
-    for i, field in enumerate(all_fields, start=1):
-        field.insert(0, row_data[i])
+        clear_fields(all_fields, combobox=combobox)
+        
+        for i, field in enumerate(all_fields, start=1):
+            field.insert(0, row_data[i])
+        
+        combobox.set(row_data[7])
 
 # Function verifies data has been used to search the database and then retrieves the data.
 def search_item(search_option, value):
@@ -300,7 +311,7 @@ def inventory_frame(parent):
     horizontal_scrollbar = tk.Scrollbar(top_frame, orient='horizontal')
     vertical_scrollbar = tk.Scrollbar(top_frame, orient='vertical')
     
-    inv_treeview = ttk.Treeview(top_frame, columns=('id', 'part_name', 'part_number', 'quantity', 'location','supplier', 'supplier_contact', 'low_limit  ', 'last_receive_date', 'last_receive_qty'), 
+    inv_treeview = ttk.Treeview(top_frame, columns=('id', 'part_name', 'part_number', 'quantity', 'location','supplier', 'low_limit', 'item_type', 'last_receive_date', 'last_receive_qty'), 
                                            show='headings',
                                            yscrollcommand=vertical_scrollbar.set,
                                            xscrollcommand=horizontal_scrollbar.set)
@@ -316,21 +327,21 @@ def inventory_frame(parent):
     inv_treeview.heading('quantity', text='QTY')
     inv_treeview.heading('location', text='Location')
     inv_treeview.heading('supplier', text='Supplier')
-    inv_treeview.heading('supplier_contact', text='Supplier Contact')
-    inv_treeview.heading('low_limit  ', text='Low')
+    inv_treeview.heading('low_limit', text='Low Limit')
+    inv_treeview.heading('item_type', text='Item Type')
     inv_treeview.heading('last_receive_date', text='LRD')
     inv_treeview.heading('last_receive_qty', text='LRQ')
     
     inv_treeview.column('id', width=70)
-    inv_treeview.column('part_name', width=175)
-    inv_treeview.column('part_number', width=150)
-    inv_treeview.column('quantity', width=70)
-    inv_treeview.column('location', width=100)
+    inv_treeview.column('part_name', width=200)
+    inv_treeview.column('part_number', width=175)
+    inv_treeview.column('quantity', width=80)
+    inv_treeview.column('location', width=130)
     inv_treeview.column('supplier', width=150)
-    inv_treeview.column('supplier_contact', width=200)
-    inv_treeview.column('low_limit  ', width=70)
+    inv_treeview.column('low_limit', width=100)
+    inv_treeview.column('item_type', width=150)
     inv_treeview.column('last_receive_date', width=100)
-    inv_treeview.column('last_receive_qty', width=70)
+    inv_treeview.column('last_receive_qty', width=80)
 
     #call treeview function to display the items.
     treeview()
@@ -364,15 +375,19 @@ def inventory_frame(parent):
     sup_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
     sup_entry.grid(row=1, column=3, padx=10, pady=10)
 
-    sup_contact_label = tk.Label(detail_frame, text='Supplier Contact', font=('times new roman', 10, 'bold'), bg='white')
-    sup_contact_label.grid(row=1, column=4, padx=10, pady=10)
-    sup_contact_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
-    sup_contact_entry.grid(row=1, column=5, padx=10, pady=10)
-
     low_label = tk.Label(detail_frame, text='Low Level', font=('times new roman', 10, 'bold'), bg='white')
-    low_label.grid(row=2, column=0, padx=10, pady=20)
+    low_label.grid(row=1, column=4, padx=10, pady=20)
     low_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
-    low_entry.grid(row=2, column=1, padx=10, pady=20)
+    low_entry.grid(row=1, column=5, padx=10, pady=20)
+    
+    item_type_label = tk.Label(detail_frame, text='Item Type', font=('times new roman', 10, 'bold'), bg='white')
+    item_type_label.grid(row=2, column=0, padx=10, pady=20)
+    item_type_combobox = ttk.Combobox(detail_frame, width=17, values=('Consumable', 'Stocked'), 
+                                                 font=('times new roman', 12), 
+                                                 state='readonly'
+                                                 )
+    item_type_combobox.set('Select..')
+    item_type_combobox.grid(row=2, column=1, padx=10, pady=20)
 
     #Lower button Frame
     button_frame= tk.Frame(inv_frame, bg='white')
@@ -389,8 +404,8 @@ def inventory_frame(parent):
                                                                   qty_entry.get(), 
                                                                   loc_entry.get(), 
                                                                   sup_entry.get(), 
-                                                                  sup_contact_entry.get(), 
-                                                                  low_entry.get())
+                                                                  low_entry.get(),
+                                                                  item_type_combobox.get())
                                                                   )
     add_button.grid(row=0, column=0, padx=20)
 
@@ -404,9 +419,9 @@ def inventory_frame(parent):
                                                                   part_num_entry.get(), 
                                                                   qty_entry.get(), 
                                                                   loc_entry.get(), 
-                                                                  sup_entry.get(), 
-                                                                  sup_contact_entry.get(), 
+                                                                  sup_entry.get(),
                                                                   low_entry.get(),
+                                                                  item_type_combobox.get(),
                                                                   update=True)
                                                                   )
     update_button.grid(row=0, column=1, padx=20)
@@ -422,9 +437,9 @@ def inventory_frame(parent):
                                                                 part_num_entry, 
                                                                 qty_entry, 
                                                                 loc_entry, 
-                                                                sup_entry, 
-                                                                sup_contact_entry, 
+                                                                sup_entry,  
                                                                 low_entry,
+                                                                item_type_combobox,
                                                                 delete=True)
                                                                 )
     delete_button.grid(row=0, column=2, padx=20)
@@ -441,10 +456,11 @@ def inventory_frame(parent):
                                                                   part_num_entry, 
                                                                   qty_entry, 
                                                                   loc_entry, 
-                                                                  sup_entry, 
-                                                                  sup_contact_entry, 
+                                                                  sup_entry,
                                                                   low_entry,
-                                                                  ), True)
+                                                                  ), 
+                                                                  combobox=item_type_combobox,
+                                                                  tab=True)
                                                                   )
     clear_button.grid(row=0, column=3, padx=20)
 
@@ -455,11 +471,12 @@ def inventory_frame(parent):
                                                             part_num_entry, 
                                                             qty_entry, 
                                                             loc_entry, 
-                                                            sup_entry, 
-                                                            sup_contact_entry, 
-                                                            low_entry))
+                                                            sup_entry,
+                                                            low_entry),
+                                                            item_type_combobox)
                                                             )
 
     search_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, search_combobox))
+    item_type_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, item_type_combobox))
 
     return inv_frame

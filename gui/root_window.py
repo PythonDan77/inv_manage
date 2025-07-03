@@ -1,7 +1,16 @@
 import tkinter as tk
 from gui.inventory_frame import inventory_frame
 from gui.supplier_frame import supplier_frame
+from gui.purchase_frame import purchase_frame
 from gui.asset_path import asset_path
+
+current_frame = None
+
+def forget_last(func, root):
+    global current_frame
+    if current_frame:
+        current_frame.place_forget()
+    current_frame = func(root)
 
 def create_main_window():
 
@@ -58,7 +67,8 @@ def create_main_window():
                                             image=boxes_png, 
                                             compound='left', 
                                             anchor='w',
-                                            command=lambda: inventory_frame(root))
+                                            # command=lambda: inventory_frame(root)
+                                            command= lambda: forget_last(inventory_frame, root))
     inventory_button.image = boxes_png
     inventory_button.pack(fill='x')
 
@@ -68,7 +78,8 @@ def create_main_window():
                                              font=('times new roman', 16, 'bold'), 
                                              image=ic_png, 
                                              compound='left', 
-                                             anchor='w')
+                                             anchor='w',
+                                             command= lambda: forget_last(purchase_frame, root))
     purchasing_button.image = ic_png
     purchasing_button.pack(fill='x')
 
@@ -77,7 +88,8 @@ def create_main_window():
                                            image=supplier_png, 
                                            compound='left', 
                                            anchor='w',
-                                           command=lambda: supplier_frame(root)
+                                        #    command=lambda: supplier_frame(root)
+                                           command= lambda: forget_last(supplier_frame, root)
                                            )
     supplier_button.image = supplier_png
     supplier_button.pack(fill='x')
