@@ -201,7 +201,7 @@ def search_all(search_entry, search_combobox):
 def on_select(event, combobox):
     combobox.selection_clear()
 
-def supplier_frame(parent):
+def supplier_frame(parent, user_info):
     global sup_treeview
 
     # Main Frame Code
@@ -324,6 +324,11 @@ def supplier_frame(parent):
                                         )
     clear_button.grid(row=0, column=3, padx=(20,0), pady=20)
 
+    #Disable certain buttons if user permissions are not adequate
+    if user_info['role'] not in ['manager', 'admin']:
+        add_button.config(state="disabled"),
+        update_button.config(state="disabled"),
+        delete_button.config(state="disabled")
 
     #Right frame code
     right_frame = tk.Frame(supplier_frame, width=525, height= 600, bg='white')

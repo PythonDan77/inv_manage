@@ -3,20 +3,29 @@ from gui.inventory_frame import inventory_frame
 from gui.supplier_frame import supplier_frame
 from gui.purchase_frame import purchase_frame
 from gui.asset_path import asset_path
+import time
 
 current_frame = None
 
-def forget_last(func, root):
+# Update time and date on sub title bar. Function called from bottom of create_main_window().
+def time_update(user_info):
+    date_time = time.strftime('\t\t%I:%M:%S %p\t\t %A, %B %d, %Y')
+    subtitleLabel.config(text=f'Welcome {user_info['full_name']}{date_time}')
+    subtitleLabel.after(1000, lambda: time_update(user_info)) # Update every 1000ms (1 sec).
+
+# Close frame before opening another.
+def forget_last(func, root, user_info):
     global current_frame
     if current_frame:
         current_frame.place_forget()
-    current_frame = func(root)
+    current_frame = func(root, user_info)
 
-def create_main_window():
+def create_main_window(user_info):
+    global subtitleLabel
 
     root = tk.Tk()
     root.title('Inventory Management')
-    root.geometry('1300x750+275+120')
+    root.geometry('1300x750+300+150')
     root.resizable(0, 0)
     root.config(bg='white')
 
@@ -27,7 +36,7 @@ def create_main_window():
     cart_png = tk.PhotoImage(file=asset_path("cart.png"))
     truck_png = tk.PhotoImage(file=asset_path("shipping.png"))
     supplier_png = tk.PhotoImage(file=asset_path("supplier.png"))
-
+    
     #Small png and title bar (bg='#010c48')
     titleLabel = tk.Label(root, text='         Inventory Management', 
                                 font=('times new roman', 40, 'bold'), 
@@ -68,7 +77,7 @@ def create_main_window():
                                             compound='left', 
                                             anchor='w',
                                             # command=lambda: inventory_frame(root)
-                                            command= lambda: forget_last(inventory_frame, root))
+                                            command= lambda: forget_last(inventory_frame, root, user_info))
     inventory_button.image = boxes_png
     inventory_button.pack(fill='x')
 
@@ -79,7 +88,7 @@ def create_main_window():
                                              image=ic_png, 
                                              compound='left', 
                                              anchor='w',
-                                             command= lambda: forget_last(purchase_frame, root))
+                                             command= lambda: forget_last(purchase_frame, root, user_info))
     purchasing_button.image = ic_png
     purchasing_button.pack(fill='x')
 
@@ -89,7 +98,7 @@ def create_main_window():
                                            compound='left', 
                                            anchor='w',
                                         #    command=lambda: supplier_frame(root)
-                                           command= lambda: forget_last(supplier_frame, root)
+                                           command= lambda: forget_last(supplier_frame, root, user_info)
                                            )
     supplier_button.image = supplier_png
     supplier_button.pack(fill='x')
@@ -104,4 +113,12 @@ def create_main_window():
     shipping_button.image = truck_png
     shipping_button.pack(fill='x')
 
+    time_update(user_info)
+
     return root
+
+
+
+
+
+

@@ -5,24 +5,6 @@ from db.connection import get_conn
 from tkinter import messagebox
 from datetime import datetime
 
-# def ensure_table_exists():
-#     conn = get_conn()
-#     with conn.cursor() as cur:
-#         cur.execute(
-#             """CREATE TABLE IF NOT EXISTS purchase_requests (
-#                     id INT PRIMARY KEY AUTO_INCREMENT,
-#                     part_id INT,
-#                     order_quantity INT,
-#                     requested_by VARCHAR(50), 
-#                     status ENUM('requested', 'approved', 'ordered', 'received') DEFAULT 'requested',
-#                     request_date VARCHAR(20),
-#                     notes VARCHAR(150),
-#                     FOREIGN KEY (part_id) REFERENCES inventory_items(id)
-#                    )"""
-#         )
-
-# ensure_table_exists()
-
 # Used to populate the treeview form with orders. It is called after purchase_treeview is created in purchase_frame(). Also add_update_item()
 def treeview():
     conn = get_conn()
@@ -33,7 +15,7 @@ def treeview():
                 pr.part_id,
                 i.part_name,
                 i.part_number,
-                pr.order_quantity,
+                i.restock_qty,
                 pr.requested_by,
                 pr.status,
                 pr.request_date,
@@ -47,7 +29,7 @@ def treeview():
         for record in all_records:
             purchase_treeview.insert('', 'end', values=record)
 
-def purchase_frame(parent):
+def purchase_frame(parent, user_info):
     global purchase_treeview
 
     purchase_frame = tk.Frame(parent, width=1100, height=650, bg='white')
@@ -120,7 +102,7 @@ def purchase_frame(parent):
     purchase_treeview.heading('part_id', text='Part ID')
     purchase_treeview.heading('part_name', text='Part name')
     purchase_treeview.heading('part_number', text='Part number')
-    purchase_treeview.heading('order_quantity', text='Order QTY')
+    purchase_treeview.heading('order_quantity', text='Reorder Qty')
     purchase_treeview.heading('requested_by', text='Requested by')
     purchase_treeview.heading('status', text='Status')
     purchase_treeview.heading('request_date', text='Date Requested')
@@ -149,15 +131,10 @@ def purchase_frame(parent):
     part_id_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
     part_id_entry.grid(row=0, column=1, padx=15, pady=(20,0))
 
-    order_qty_label = tk.Label(detail_frame,text='Qty Request', font=('times new roman', 10, 'bold'), bg='white', anchor='w')
-    order_qty_label.grid(row=0, column=2,padx=(10,10), pady=(20,0))
-    order_qty_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
-    order_qty_entry.grid(row=0, column=3, padx=15, pady=(20,0))
-
     notes_label = tk.Label(detail_frame, text='Notes', font=('times new roman', 10, 'bold'), bg='white', anchor='w')
-    notes_label.grid(row=0, column=4,padx=(10,10), pady=(20,0))
+    notes_label.grid(row=0, column=2,padx=(10,10), pady=(20,0))
     notes_entry = tk.Entry(detail_frame, width=30, font=('times new roman', 11), bg='lightyellow')
-    notes_entry.grid(row=0, column=5, padx=15, pady=(20,0))
+    notes_entry.grid(row=0, column=3, padx=15, pady=(20,0))
     
     #Lower button Frame
     button_frame= tk.Frame(purchase_frame, bg='white')
@@ -243,5 +220,10 @@ def purchase_frame(parent):
                                                                   )
     history_button.grid(row=0, column=4, padx=20)
 
+    #Disable all entry fields and certain buttons if user permissions are not adequate
+    if user_info['role'] in ['manager', 'admin']:
+        purchased_button.config(state="disabled")
+        received_button.config(state="disabled")
+        delete_button.config(state="disabled")
 
     return purchase_frame

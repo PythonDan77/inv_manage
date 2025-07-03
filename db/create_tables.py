@@ -6,6 +6,15 @@ def ensure_tables_exist():
     conn = get_conn()
     with conn.cursor() as cur:
         cur.execute(
+            """CREATE TABLE IF NOT EXISTS users(
+                   id INT PRIMARY KEY AUTO_INCREMENT,
+                   username VARCHAR(50),
+                   password_hash VARCHAR(255),
+                   role ENUM('employee', 'manager', 'admin') DEFAULT 'employee',
+                   full_name VARCHAR(100)
+                   )"""
+        )
+        cur.execute(
             """CREATE TABLE IF NOT EXISTS inventory_items (
                    id INT PRIMARY KEY AUTO_INCREMENT, 
                    part_name VARCHAR(40), 
@@ -14,6 +23,7 @@ def ensure_tables_exist():
                    location VARCHAR(30), 
                    supplier VARCHAR(30),  
                    low_limit INT,
+                   restock_qty INT,
                    item_type VARCHAR(20),
                    last_receive_date VARCHAR(20),
                    last_receive_qty VARCHAR(15)   
@@ -34,7 +44,6 @@ def ensure_tables_exist():
             """CREATE TABLE IF NOT EXISTS purchase_requests (
                     id INT PRIMARY KEY AUTO_INCREMENT,
                     part_id INT,
-                    order_quantity INT,
                     requested_by VARCHAR(50), 
                     status ENUM('requested', 'approved', 'ordered', 'received') DEFAULT 'requested',
                     request_date VARCHAR(20),
