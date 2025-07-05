@@ -483,7 +483,7 @@ def inventory_frame(parent, user_info):
     item_type_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, item_type_combobox))
 
     #Disable certain buttons if user permissions are not adequate
-    if user_info['role'] in ['manager', 'admin']:
+    if user_info['role'] not in ['manager', 'admin']:
         add_button.config(state="disabled")
         update_button.config(state="disabled")
         delete_button.config(state="disabled")

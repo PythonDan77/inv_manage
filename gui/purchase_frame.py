@@ -221,7 +221,7 @@ def purchase_frame(parent, user_info):
     history_button.grid(row=0, column=4, padx=20)
 
     #Disable all entry fields and certain buttons if user permissions are not adequate
-    if user_info['role'] in ['manager', 'admin']:
+    if user_info['role'] not in ['manager', 'admin']:
         purchased_button.config(state="disabled")
         received_button.config(state="disabled")
         delete_button.config(state="disabled")

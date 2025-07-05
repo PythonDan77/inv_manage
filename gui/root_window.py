@@ -2,6 +2,7 @@ import tkinter as tk
 from gui.inventory_frame import inventory_frame
 from gui.supplier_frame import supplier_frame
 from gui.purchase_frame import purchase_frame
+from gui.user_frame import user_frame
 from gui.asset_path import asset_path
 import time
 
@@ -36,6 +37,7 @@ def create_main_window(user_info):
     cart_png = tk.PhotoImage(file=asset_path("cart.png"))
     truck_png = tk.PhotoImage(file=asset_path("shipping.png"))
     supplier_png = tk.PhotoImage(file=asset_path("supplier.png"))
+    user_png = tk.PhotoImage(file=asset_path("user.png"))
     
     #Small png and title bar (bg='#010c48')
     titleLabel = tk.Label(root, text='         Inventory Management', 
@@ -112,6 +114,18 @@ def create_main_window(user_info):
     shipping_button = tk.Button(leftFrame, text='Shipping', font=('times new roman', 16, 'bold'), image=truck_png, compound='left', anchor='w')
     shipping_button.image = truck_png
     shipping_button.pack(fill='x')
+
+    #Shipping button with truck png(25 px)
+    if user_info['role'] == 'admin':
+        user_button = tk.Button(leftFrame, text='Users', 
+                                        font=('times new roman', 16, 'bold'), 
+                                        image=user_png, 
+                                        compound='left', 
+                                        anchor='w',
+                                        command= lambda: forget_last(user_frame, root, user_info)
+                                        )
+        user_button.image = user_png
+        user_button.pack(fill='x')
 
     time_update(user_info)
 
