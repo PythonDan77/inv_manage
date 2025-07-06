@@ -220,6 +220,93 @@ def search_all(search_entry, search_combobox):
 def on_select(event, combobox):
     combobox.selection_clear()
 
+def password_update(frame, username_entry, full_name_entry, password_entry, 
+                    re_password_entry, update_button, delete_button, 
+                    clear_button, pass_update_button, role_combobox
+                    ):
+    
+    save_button = cancel_button = None
+
+    def cancel_save():
+        password_entry.delete(0,tk.END)
+        re_password_entry.delete(0,tk.END)
+
+        username_entry.config(state='normal')
+        full_name_entry.config(state='normal')
+        role_combobox.config(state='normal')
+        update_button.config(state='normal')
+        delete_button.config(state='normal')
+        clear_button.config(state='normal')
+        pass_update_button.config(state='normal')
+        password_entry.config(state='disabled')
+        re_password_entry.config(state='disabled')
+        save_button.destroy()
+        cancel_button.destroy()
+        
+        return
+
+
+    def save_password():
+        selected = user_treeview.selection()
+        data = user_treeview.item(selected)
+        id_num = data['values'][0]
+
+        new_pw = password_entry.get()
+        re_new_pw = re_password_entry.get()
+
+        if not new_pw:
+            messagebox.showerror("Error", "Password required.")
+            return
+
+        if new_pw != re_new_pw:
+            messagebox.showerror('Password Error', 'Passwords do not match.')
+            cancel_save()
+            return
+
+        try:
+            hashed = bcrypt.hashpw(new_pw.encode(), bcrypt.gensalt()).decode()
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hashed, id_num))
+                conn.commit()
+            messagebox.showinfo("Success", "Password updated.")
+        except Exception as e:
+            messagebox.showerror("Database Error", str(e))
+        finally:
+            cancel_save()   
+        
+    username_entry.config(state='disabled')
+    full_name_entry.config(state='disabled')
+    role_combobox.config(state='disabled')
+    update_button.config(state='disabled')
+    delete_button.config(state='disabled')
+    clear_button.config(state='disabled')
+    pass_update_button.config(state='disabled')
+    password_entry.config(state='normal')
+    password_entry.focus()
+    re_password_entry.config(state='normal')
+    
+    save_button = tk.Button(frame, text='Save', 
+                                            font=('times new roman', 12), 
+                                            bg='#0f4d7d', 
+                                            fg='white', 
+                                            width= 10, 
+                                            cursor='hand2',
+                                            command=save_password
+                                                                )
+    save_button.grid(row=2, column=4, padx=(20,0))
+
+    cancel_button = tk.Button(frame, text='Cancel', 
+                                            font=('times new roman', 12), 
+                                            bg='#0f4d7d', 
+                                            fg='white', 
+                                            width= 10, 
+                                            cursor='hand2',
+                                            command=cancel_save
+                                                                )
+    cancel_button.grid(row=2, column=5)
+
+
 def user_frame(parent, user_info):
     global user_treeview
 
@@ -316,7 +403,7 @@ def user_frame(parent, user_info):
 
     password_label = tk.Label(detail_frame, text='Password', font=('times new roman', 10, 'bold'), bg='white')
     password_label.grid(row=0, column=4, padx=10, pady=20)
-    password_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
+    password_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow', show="*")
     password_entry.grid(row=0, column=5, padx=10, pady=20)
 
     role_label = tk.Label(detail_frame, text='Role', font=('times new roman', 10, 'bold'), bg='white')
@@ -330,7 +417,7 @@ def user_frame(parent, user_info):
 
     re_password_label = tk.Label(detail_frame, text='Re-Enter Password', font=('times new roman', 10, 'bold'), bg='white')
     re_password_label.grid(row=1, column=4, padx=10, pady=20)
-    re_password_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
+    re_password_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow', show="*")
     re_password_entry.grid(row=1, column=5, padx=10, pady=20)
 
     #Lower button Frame
@@ -408,16 +495,19 @@ def user_frame(parent, user_info):
                                            fg='white', 
                                            width= 10, 
                                            cursor='hand2', 
-                                           state='disabled'
-                                        #    command=lambda: clear_fields((
-                                        #                           username_entry, 
-                                        #                           full_name_entry, 
-                                        #                           password_entry,
-                                        #                           re_password_entry
-                                        #                           ), 
-                                        #                           add_button=add_button,
-                                        #                           combobox=role_combobox,
-                                        #                           tab=True)
+                                           state='disabled',
+                                           command=lambda: password_update(
+                                                                  detail_frame,
+                                                                  username_entry, 
+                                                                  full_name_entry, 
+                                                                  password_entry,
+                                                                  re_password_entry, 
+                                                                  update_button,
+                                                                  delete_button,
+                                                                  clear_button,
+                                                                  pass_update_button,
+                                                                  role_combobox
+                                                                  )
                                                                   )
     pass_update_button.grid(row=0, column=4, padx=20)
     

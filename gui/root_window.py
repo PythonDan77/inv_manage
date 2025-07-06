@@ -84,7 +84,6 @@ def create_main_window(user_info):
     inventory_button.pack(fill='x')
 
     #Purchasing button with IC png(25 px)
-    
     purchasing_button = tk.Button(leftFrame, text='Purchasing', 
                                              font=('times new roman', 16, 'bold'), 
                                              image=ic_png, 
@@ -116,7 +115,7 @@ def create_main_window(user_info):
     shipping_button.pack(fill='x')
 
     #Shipping button with truck png(25 px)
-    if user_info['role'] == 'admin':
+    if user_info['role'] in ['manager', 'admin']:
         user_button = tk.Button(leftFrame, text='Users', 
                                         font=('times new roman', 16, 'bold'), 
                                         image=user_png, 
