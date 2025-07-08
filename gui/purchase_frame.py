@@ -19,15 +19,165 @@ def treeview():
                 pr.requested_by,
                 pr.status,
                 pr.request_date,
-                pr.notes
+                pr.notes,
+                pr.purchased_by,
+                pr.purchase_qty,
+                pr.purchase_date
             FROM purchase_requests pr
             JOIN inventory_items i ON pr.part_id = i.id
-            ORDER BY pr.request_date DESC;"""
+            ORDER BY pr.id;"""
         )
         all_records = cur.fetchall()
         purchase_treeview.delete(*purchase_treeview.get_children())
         for record in all_records:
-            purchase_treeview.insert('', 'end', values=record)
+            clean_record = ["" if field is None else field for field in record]
+            purchase_treeview.insert('', 'end', values=clean_record)
+
+def create_request(part_id_entry, notes_entry, user):
+
+    part_id = part_id_entry.get()
+    notes = notes_entry.get()
+
+    if not part_id:
+        messagebox.showerror('Empty Field', 'Part ID cannot be empty.')
+        return
+    
+    try:
+        part_id = int(part_id)
+    except ValueError:
+        messagebox.showerror("Validation Error", "Part ID must be a number.")
+        return
+
+    if not notes:
+        notes = "User-generated request"
+
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT * FROM inventory_items WHERE id = %s""", (part_id,)
+            )
+
+            result = cur.fetchone()
+            if not result:
+                messagebox.showerror("Not Found", "Part ID not found.")
+                return
+
+            cur.execute(
+                """SELECT * FROM purchase_requests WHERE part_id = %s""", (part_id,)
+            )
+            duplicate = cur.fetchone()
+            if duplicate:
+                dup_confirm = messagebox.askyesno('Duplicate Request', 'This request already exists. Do you want to proceed?')
+                if not dup_confirm:
+                    return
+
+            set_date = datetime.today().strftime('%Y-%m-%d')
+            cur.execute( """INSERT INTO purchase_requests (part_id, requested_by, request_date, status, notes) 
+                            VALUES (%s, %s, %s, %s, %s)""",
+                            (result[0],
+                             user,
+                             set_date,
+                             'requested',
+                             notes)
+                        )
+        conn.commit()
+        treeview()
+
+        part_id_entry.delete(0,tk.END)
+        notes_entry.delete(0,tk.END)
+    except Exception as e:
+            messagebox.showerror("Database Error", str(e))
+
+# Check to make sure a row is selected to either update or delete.
+def row_select_check(purchase=False, delete=False):
+    
+    selected = purchase_treeview.selection()
+    if not selected:
+        messagebox.showerror('Error','You must select a row.')
+        return
+
+    # Get the currently selected ID of the row.
+    data = purchase_treeview.item(selected)
+    id_num = data['values'][0]
+
+    if delete:
+        delete_item(id_num)
+    elif purchase:
+        open_purchase_popup(id_num)
+
+def open_purchase_popup(id_num):
+    popup = tk.Toplevel()
+    popup.title("Enter Purchase Quantity")
+    popup.geometry("500x300+650+400")
+    popup.transient()  # Keeps it on top
+    popup.grab_set()   # Modal behavior
+    
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            cur.execute(
+                    """SELECT 
+                            ii.part_name,
+                            ii.restock_qty
+                        FROM purchase_requests pr
+                        JOIN inventory_items ii ON pr.part_id = ii.id
+                        WHERE pr.id = %s;""", (id_num,)
+                        )
+            result = cur.fetchone()
+    except Exception as e:
+            messagebox.showerror("Database Error", str(e))
+
+    tk.Label(popup, text=f"Part: {result[0]}").pack(pady=5)
+    tk.Label(popup, text=f"Requested: {result[1]}").pack(pady=5)
+    tk.Label(popup, text="Qty Purchased:").pack(pady=5)
+
+    qty_entry = tk.Entry(popup, font=('times new roman', 12), bg='lightyellow')
+    qty_entry.pack(pady=5)
+
+    def submit_purchase():
+        qty = qty_entry.get()
+        if not qty.isdigit():
+            messagebox.showerror("Error", "Enter a valid quantity")
+            return
+        # Update the purchase_requests table here
+        # Set status to "ordered", update purchase_qty, purchase_date, purchased_by
+        # Then close popup
+        popup.destroy()
+
+    def cancel():
+        popup.destroy()
+
+    submit_button = tk.Button(popup, text="Submit", 
+                                            font=('times new roman', 12), 
+                                            bg='#0f4d7d', 
+                                            fg='white', 
+                                            width= 10, 
+                                            cursor='hand2',
+                                            command=submit_purchase)
+    submit_button.pack(side="left", padx=10, pady=10)
+    cancel_button = tk.Button(popup, text="Cancel", font=('times new roman', 12), 
+                                            bg='#0f4d7d', 
+                                            fg='white', 
+                                            width= 10, 
+                                            cursor='hand2',
+                                            command=cancel)
+    cancel_button.pack(side="right", padx=10, pady=10)
+
+# Delete the selected row/item.
+def delete_item(id_num):
+
+    result = messagebox.askyesno('Confirm', 'Do you want to delete this record?')
+    if result:
+        try:
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute('DELETE FROM purchase_requests WHERE id=%s',(id_num,))
+            conn.commit()
+            treeview()
+            messagebox.showinfo('Success','Deleted Successfully.')
+        except Exception as e:
+            messagebox.showerror("Database Error", str(e))
 
 def purchase_frame(parent, user_info):
     global purchase_treeview
@@ -88,7 +238,7 @@ def purchase_frame(parent, user_info):
     horizontal_scrollbar = tk.Scrollbar(top_frame, orient='horizontal')
     vertical_scrollbar = tk.Scrollbar(top_frame, orient='vertical')
     
-    purchase_treeview = ttk.Treeview(top_frame, columns=('id', 'part_id', 'part_name', 'part_number', 'order_quantity', 'requested_by', 'status','request_date', 'notes'), 
+    purchase_treeview = ttk.Treeview(top_frame, columns=('id', 'part_id', 'part_name', 'part_number', 'order_quantity', 'requested_by', 'status','request_date', 'notes', 'purchased_by', 'purchase_qty', 'purchase_date'), 
                                            show='headings',
                                            yscrollcommand=vertical_scrollbar.set,
                                            xscrollcommand=horizontal_scrollbar.set)
@@ -107,6 +257,9 @@ def purchase_frame(parent, user_info):
     purchase_treeview.heading('status', text='Status')
     purchase_treeview.heading('request_date', text='Date Requested')
     purchase_treeview.heading('notes', text='Notes')
+    purchase_treeview.heading('purchased_by', text='Purchased by')
+    purchase_treeview.heading('purchase_qty', text='Purchase qty')
+    purchase_treeview.heading('purchase_date', text='Purchase date')
   
     
     purchase_treeview.column('id', width=100)
@@ -114,10 +267,13 @@ def purchase_frame(parent, user_info):
     purchase_treeview.column('part_name', width=200)
     purchase_treeview.column('part_number', width=175)
     purchase_treeview.column('order_quantity', width=100)
-    purchase_treeview.column('requested_by', width=150)
+    purchase_treeview.column('requested_by', width=170)
     purchase_treeview.column('status', width=175)
     purchase_treeview.column('request_date', width=150)
     purchase_treeview.column('notes', width=300)
+    purchase_treeview.column('purchased_by', width=150)
+    purchase_treeview.column('purchase_qty', width=120)
+    purchase_treeview.column('purchase_date', width=150)
     
     #call treeview function to display the items.
     treeview()
@@ -146,33 +302,21 @@ def purchase_frame(parent, user_info):
                                          fg='white', 
                                          width= 10, 
                                          cursor='hand2', 
-                                        #  command=lambda: add_update_item(part_name_entry.get(), 
-                                        #                           part_num_entry.get(), 
-                                        #                           qty_entry.get(), 
-                                        #                           loc_entry.get(), 
-                                        #                           sup_entry.get(), 
-                                        #                           low_entry.get(),
-                                        #                           item_type_combobox.get())
+                                         command=lambda: create_request(part_id_entry, notes_entry, user_info['full_name'])
                                                                   )
     create_button.grid(row=0, column=0, padx=20)
 
-    purchased_button = tk.Button(button_frame, text='Purchased', 
+    purchased_button = tk.Button(button_frame, text='Purchase', 
                                          font=('times new roman', 12), 
                                          bg='#0f4d7d', 
                                          fg='white', 
                                          width= 10, 
                                          cursor='hand2', 
-                                        #  command=lambda: add_update_item(part_name_entry.get(), 
-                                        #                           part_num_entry.get(), 
-                                        #                           qty_entry.get(), 
-                                        #                           loc_entry.get(), 
-                                        #                           sup_entry.get(), 
-                                        #                           low_entry.get(),
-                                        #                           item_type_combobox.get())
+                                         command=lambda: row_select_check(purchase=True)
                                                                   )
     purchased_button.grid(row=0, column=1, padx=20)
 
-    received_button = tk.Button(button_frame, text='Received', 
+    received_button = tk.Button(button_frame, text='Receive', 
                                          font=('times new roman', 12), 
                                          bg='#0f4d7d', 
                                          fg='white', 
@@ -194,13 +338,7 @@ def purchase_frame(parent, user_info):
                                          fg='white', 
                                          width= 10, 
                                          cursor='hand2', 
-                                        #  command=lambda: add_update_item(part_name_entry.get(), 
-                                        #                           part_num_entry.get(), 
-                                        #                           qty_entry.get(), 
-                                        #                           loc_entry.get(), 
-                                        #                           sup_entry.get(), 
-                                        #                           low_entry.get(),
-                                        #                           item_type_combobox.get())
+                                         command=lambda: row_select_check(delete=True)
                                                                   )
     delete_button.grid(row=0, column=3, padx=20)
 

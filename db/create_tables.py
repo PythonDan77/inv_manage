@@ -45,9 +45,12 @@ def ensure_tables_exist():
                     id INT PRIMARY KEY AUTO_INCREMENT,
                     part_id INT,
                     requested_by VARCHAR(50), 
-                    status ENUM('requested', 'approved', 'ordered', 'received') DEFAULT 'requested',
+                    status ENUM('requested', 'ordered', 'received partial', 'received') DEFAULT 'requested',
                     request_date VARCHAR(20),
                     notes VARCHAR(150),
+                    purchased_by VARCHAR(50),
+                    purchase_qty INT,
+                    purchase_date VARCHAR(20),
                     FOREIGN KEY (part_id) REFERENCES inventory_items(id)
                    )"""
         )

@@ -231,15 +231,15 @@ def password_update(frame, username_entry, full_name_entry, password_entry,
         password_entry.delete(0,tk.END)
         re_password_entry.delete(0,tk.END)
 
-        username_entry.config(state='normal')
-        full_name_entry.config(state='normal')
-        role_combobox.config(state='normal')
-        update_button.config(state='normal')
-        delete_button.config(state='normal')
-        clear_button.config(state='normal')
-        pass_update_button.config(state='normal')
+        for widget in [
+            username_entry, full_name_entry, role_combobox,
+            update_button, delete_button, clear_button, pass_update_button
+        ]:
+            widget.config(state='normal')
+
         password_entry.config(state='disabled')
         re_password_entry.config(state='disabled')
+        
         save_button.destroy()
         cancel_button.destroy()
         
@@ -273,15 +273,13 @@ def password_update(frame, username_entry, full_name_entry, password_entry,
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
         finally:
-            cancel_save()   
-        
-    username_entry.config(state='disabled')
-    full_name_entry.config(state='disabled')
-    role_combobox.config(state='disabled')
-    update_button.config(state='disabled')
-    delete_button.config(state='disabled')
-    clear_button.config(state='disabled')
-    pass_update_button.config(state='disabled')
+            cancel_save() 
+
+
+    for widget in [username_entry, full_name_entry, role_combobox,
+            update_button, delete_button, clear_button, pass_update_button]:
+            widget.config(state='disabled')
+
     password_entry.config(state='normal')
     password_entry.focus()
     re_password_entry.config(state='normal')
