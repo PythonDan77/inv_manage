@@ -51,6 +51,23 @@ def ensure_tables_exist():
                     purchased_by VARCHAR(50),
                     purchase_qty INT,
                     purchase_date VARCHAR(20),
+                    outstanding_qty INT,
                     FOREIGN KEY (part_id) REFERENCES inventory_items(id)
                    )"""
+        )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS purchase_history (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    part_id INT,
+                    part_name VARCHAR(100),
+                    requested_by VARCHAR(50),
+                    purchased_by VARCHAR(50),
+                    received_by VARCHAR(50),
+                    purchase_qty INT,
+                    received_qty INT,
+                    request_date VARCHAR(20),
+                    purchase_date VARCHAR(20),
+                    receive_date VARCHAR(20),
+                    notes TEXT
+                )"""
         )
