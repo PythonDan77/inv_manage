@@ -2,8 +2,10 @@ import tkinter as tk
 from tkinter import ttk
 from gui.asset_path import asset_path
 from db.connection import get_conn
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 from datetime import datetime
+import csv
+import os
 
 # Used to populate the treeview form with orders. It is called after purchase_treeview is created in purchase_frame(). Also add_update_item()
 def treeview():
@@ -109,6 +111,7 @@ def row_select_check(user, receive=False, purchase=False, delete=False):
     elif receive:
         open_received_popup(user, id_num)
 
+# Pop up window to handle the purchase of items when they are marked requested in the table.
 def open_purchase_popup(user, id_num):
     popup = tk.Toplevel(bg='white')
     popup.title("Enter Purchase Quantity")
@@ -196,7 +199,7 @@ def open_purchase_popup(user, id_num):
                                             command=cancel)
     cancel_button.pack(side="right", padx=10, pady=10)
 
-
+# Pop up to handle receiving shipments. Full and partial.
 def open_received_popup(user, id_num):
     popup = tk.Toplevel(bg='white')
     popup.title("Enter Received Quantity")
@@ -217,7 +220,8 @@ def open_received_popup(user, id_num):
                             pr.request_date,
                             pr.purchase_date,
                             pr.status,
-                            pr.outstanding_qty
+                            pr.outstanding_qty,
+                            pr.id
                         FROM purchase_requests pr
                         JOIN inventory_items ii ON pr.part_id = ii.id
                         WHERE pr.id = %s;""", (id_num,)
@@ -225,7 +229,7 @@ def open_received_popup(user, id_num):
             result = cur.fetchone()
     except Exception as e:
             messagebox.showerror("Database Error", str(e))
-    print(result)
+   
     if result[7] == 'requested':
         messagebox.showerror("Receiving Error", 'Item has not been marked "ordered" and cannot be received.')
         popup.destroy()
@@ -263,12 +267,12 @@ def open_received_popup(user, id_num):
                 # Insert into purchase_history always (log every receive event)
                 cur.execute(
                     """INSERT INTO purchase_history (
-                        part_id, part_name, requested_by, purchased_by,
+                        purchase_id, part_id, part_name, requested_by, purchased_by,
                         received_by, purchase_qty, received_qty,
                         request_date, purchase_date, receive_date, notes
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                     (
-                        result[0], result[1], result[2], result[3],
+                        result[9], result[0], result[1], result[2], result[3],
                         user, result[4], received_now,
                         result[5], result[6], set_date,
                         note
@@ -341,6 +345,256 @@ def delete_item(id_num):
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
 
+# History tab that provides access to the table purchase_history which shows all completed and received purchases.
+def history_popup():
+
+    popup = tk.Toplevel(bg='white')
+    popup.title("Purchase History")
+    popup.geometry("1150x650+400+250")
+    popup.transient()  # Keeps it on top
+    popup.grab_set()   # Modal behavior
+
+    history_treeview = None
+
+    heading_label = tk.Label(popup, text='Purchase History', font=('times new roman', 16, 'bold'), bg='#0f4d7d', fg='white')
+    heading_label.place(x=0, y=0, relwidth=1)
+
+    top_frame = tk.Frame(popup, width=1075, height=240, bg='white')
+    top_frame.place(x=0, y=75, relwidth=1)
+    
+    #Search Frame
+    search_frame = tk.Frame(top_frame, bg='white')
+    search_frame.pack()
+
+    # Function verifies data has been used to search the database and then retrieves the data.
+    def hist_search_item(search_option, value):
+        if search_option == 'Select..':
+            messagebox.showerror('Error','Select an option.')
+        elif not value:
+            messagebox.showerror('Error','Enter a value to search.')
+        else:
+            try:
+                search_option = search_option.replace(' ', '_')
+                conn = get_conn()
+                with conn.cursor() as cur:
+                    cur.execute(f'SELECT * FROM purchase_history WHERE {search_option} LIKE %s', f'%{value}%')
+                    result = cur.fetchall()
+                    history_treeview.delete(*history_treeview.get_children())
+                    for record in result:
+                        history_treeview.insert('', 'end', values=record)
+
+            except Exception as e:
+                messagebox.showerror("Database Error", str(e))
+
+    # Reloads all data and resets the search options.
+    def hist_search_all(search_entry, search_combobox):
+        hist_treeview()
+        search_entry.delete(0,'end')
+        search_combobox.set('Select...')
+
+    # Clear the highlight from the combobox. Trigger in the main function at the bottom.
+    def hist_on_select(event, combobox):
+        combobox.selection_clear()
+
+    #Drop Down Menu
+    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Part ID', 'Part name'), 
+                                                 font=('times new roman', 12), 
+                                                 state='readonly'
+                                                 )
+    search_combobox.set('Select..')
+    search_combobox.grid(row=0, column=0, padx=20)
+
+    #Entry Field
+    search_entry = tk.Entry(search_frame, font=('times new roman', 12), bg='lightyellow')
+    search_entry.grid(row=0, column=1)
+
+    search_button = tk.Button(search_frame, text='Search', 
+                                            font=('times new roman', 12), 
+                                            bg='#0f4d7d', 
+                                            fg='white', 
+                                            width= 10, 
+                                            cursor='hand2',
+                                            command= lambda: hist_search_item(search_combobox.get(),search_entry.get())
+                                            )
+    search_button.grid(row=0, column=2, padx=20)
+
+    show_button = tk.Button(search_frame, text='Show All', 
+                                          font=('times new roman', 12), 
+                                          bg='#0f4d7d', 
+                                          fg='white', 
+                                          width= 10, 
+                                          cursor='hand2',
+                                          command= lambda: hist_search_all(search_entry, search_combobox)
+                                          )
+    show_button.grid(row=0, column=3)
+
+    horizontal_scrollbar = tk.Scrollbar(top_frame, orient='horizontal')
+    vertical_scrollbar = tk.Scrollbar(top_frame, orient='vertical')
+    
+    history_treeview = ttk.Treeview(top_frame, columns=('id', 'purchase_id', 'part_id', 'part_name', 'requested_by', 'purchased_by', 
+                                                        'receieved_by', 'purchase_qty', 'received_qty', 'request_date', 
+                                                        'purchase_date', 'receive_date', 'notes'), 
+                                           show='headings',
+                                           yscrollcommand=vertical_scrollbar.set,
+                                           xscrollcommand=horizontal_scrollbar.set)
+    horizontal_scrollbar.pack(side='bottom', fill='x')
+    vertical_scrollbar.pack(side='right', fill='y', pady=(10, 0))
+    horizontal_scrollbar.config(command=history_treeview.xview)
+    vertical_scrollbar.config(command=history_treeview.yview)
+    history_treeview.pack(pady= (10, 0))
+    
+    history_treeview.heading('id', text='History ID')
+    history_treeview.heading('purchase_id', text='Purchase ID')
+    history_treeview.heading('part_id', text='Part ID')
+    history_treeview.heading('part_name', text='Part name')
+    history_treeview.heading('requested_by', text='Requested by')
+    history_treeview.heading('purchased_by', text='Purchased by')
+    history_treeview.heading('receieved_by', text='Received by')
+    history_treeview.heading('purchase_qty', text='Purchase qty')
+    history_treeview.heading('received_qty', text='Received qty')
+    history_treeview.heading('request_date', text='Request date')
+    history_treeview.heading('purchase_date', text='Purchased date')
+    history_treeview.heading('receive_date', text='Received date')
+    history_treeview.heading('notes', text='Notes')
+    
+    history_treeview.column('id', width=100)
+    history_treeview.column('purchase_id', width=100)
+    history_treeview.column('part_id', width=100)
+    history_treeview.column('part_name', width=200)
+    history_treeview.column('requested_by', width=175)
+    history_treeview.column('purchased_by', width=170)
+    history_treeview.column('receieved_by', width=170)
+    history_treeview.column('purchase_qty', width=125)
+    history_treeview.column('received_qty', width=125)
+    history_treeview.column('request_date', width=150)
+    history_treeview.column('purchase_date', width=150)
+    history_treeview.column('receive_date', width=150)
+    history_treeview.column('notes', width=300)
+    
+    def hist_treeview():
+        try:
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT * FROM purchase_history"""
+                )
+                all_records = cur.fetchall()
+                history_treeview.delete(*history_treeview.get_children())
+                for record in all_records:
+                    clean_record = ["" if field is None else field for field in record]
+                    history_treeview.insert('', 'end', values=clean_record)
+        except Exception as e:
+            messagebox.showerror("Database Error", str(e))
+    
+    #call treeview function to display the items.
+    hist_treeview()
+
+    button_frame= tk.Frame(popup, bg='white')
+    button_frame.place(x=400, y=500, relwidth=1)
+
+    def cancel():
+        popup.destroy()
+
+    close_button = tk.Button(button_frame, text='Close', 
+                                         font=('times new roman', 12), 
+                                         bg='#0f4d7d', 
+                                         fg='white', 
+                                         width= 10, 
+                                         cursor='hand2', 
+                                         command=cancel)
+                                                                  
+    close_button.grid(row=0, column=0, padx=20)
+
+    def export_purchase_history_to_csv():
+        try:
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM purchase_history")
+                rows = cur.fetchall()
+                column_names = [desc[0] for desc in cur.description]
+
+            if not rows:
+                messagebox.showinfo("Export", "No data in purchase history.")
+                return
+
+            # Default filename
+            default_filename = f"purchase_history_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
+
+            # Path to user's Desktop
+            desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+
+            # Ask where to save the file
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv")],
+                initialfile=default_filename,
+                initialdir=desktop_path,
+                title="Save Purchase History As"
+            )
+
+            if not file_path:
+                return  # User cancelled
+
+            # Write the CSV file
+            with open(file_path, mode='w', newline='', encoding='utf-8') as file:
+                writer = csv.writer(file)
+                writer.writerow(column_names)  # headers
+                writer.writerows(rows)         # data
+
+            messagebox.showinfo("Export Successful", f"CSV file saved:\n{file_path}")
+
+            # Optionally open the file (Windows only)
+            try:
+                os.startfile(file_path)
+            except:
+                pass
+
+        except Exception as e:
+            messagebox.showerror("Export Error", str(e))
+
+    excel_button = tk.Button(button_frame, text='Excel Sheet', 
+                                         font=('times new roman', 12), 
+                                         bg='#0f4d7d', 
+                                         fg='white', 
+                                         width= 10, 
+                                         cursor='hand2', 
+                                         command=export_purchase_history_to_csv
+                                        )
+                                                                  
+    excel_button.grid(row=0, column=1, padx=20)
+
+    search_combobox.bind("<<ComboboxSelected>>", lambda event: hist_on_select(event, search_combobox))
+
+# Function verifies data has been used to search the database and then retrieves the data.
+def search_item(search_option, value):
+    if search_option == 'Select..':
+        messagebox.showerror('Error','Select an option.')
+    elif not value:
+        messagebox.showerror('Error','Enter a value to search.')
+    else:
+        try:
+            search_option = search_option.replace(' ', '_')
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute(f'SELECT * FROM purchase_requests WHERE {search_option} LIKE %s', f'%{value}%')
+                result = cur.fetchall()
+                purchase_treeview.delete(*purchase_treeview.get_children())
+                for record in result:
+                    purchase_treeview.insert('', 'end', values=record)
+
+        except Exception as e:
+            messagebox.showerror("Database Error", str(e))
+
+# Reloads all data and resets the search options.
+def search_all(search_entry, search_combobox):
+    treeview()
+    search_entry.delete(0,'end')
+    search_combobox.set('Select...')
+
+# Clear the highlight from the combobox. Trigger in the main function at the bottom.
+def on_select(event, combobox):
+    combobox.selection_clear()
+
 def purchase_frame(parent, user_info):
     global purchase_treeview
 
@@ -366,7 +620,7 @@ def purchase_frame(parent, user_info):
     search_frame = tk.Frame(top_frame, bg='white')
     search_frame.pack()
     #Drop Down Menu
-    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Part ID', 'Part name', 'Part number', 'Supplier'), 
+    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Part ID', 'Part name', 'Part number', 'Status'), 
                                                  font=('times new roman', 12), 
                                                  state='readonly'
                                                  )
@@ -383,7 +637,7 @@ def purchase_frame(parent, user_info):
                                             fg='white', 
                                             width= 10, 
                                             cursor='hand2',
-                                            # command= lambda: search_item(search_combobox.get(),search_entry.get())
+                                            command= lambda: search_item(search_combobox.get(),search_entry.get())
                                             )
     search_button.grid(row=0, column=2, padx=20)
 
@@ -393,7 +647,7 @@ def purchase_frame(parent, user_info):
                                           fg='white', 
                                           width= 10, 
                                           cursor='hand2',
-                                        #   command= lambda: search_all(search_entry, search_combobox)
+                                          command= lambda: search_all(search_entry, search_combobox)
                                           )
     show_button.grid(row=0, column=3)
 
@@ -506,15 +760,11 @@ def purchase_frame(parent, user_info):
                                          fg='white', 
                                          width= 10, 
                                          cursor='hand2', 
-                                        #  command=lambda: add_update_item(part_name_entry.get(), 
-                                        #                           part_num_entry.get(), 
-                                        #                           qty_entry.get(), 
-                                        #                           loc_entry.get(), 
-                                        #                           sup_entry.get(), 
-                                        #                           low_entry.get(),
-                                        #                           item_type_combobox.get())
+                                         command=history_popup
                                                                   )
     history_button.grid(row=0, column=4, padx=20)
+
+    search_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, search_combobox))
 
     #Disable all entry fields and certain buttons if user permissions are not adequate
     if user_info['role'] not in ['manager', 'admin']:

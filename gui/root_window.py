@@ -51,7 +51,7 @@ def create_main_window(user_info):
     titleLabel.image = icon_png
     titleLabel.place(x=0, y=0, relwidth=1)
     
-    logoutButton = tk.Button(root, text='Logout', font=('times new roman', 20, 'bold'), fg='#010c48')
+    logoutButton = tk.Button(root, text='Exit', font=('times new roman', 20, 'bold'), fg='#010c48')
     logoutButton.place(x=1120, y=10)
 
     #Sub title bar with date and time

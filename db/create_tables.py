@@ -58,6 +58,7 @@ def ensure_tables_exist():
         cur.execute(
             """CREATE TABLE IF NOT EXISTS purchase_history (
                     id INT PRIMARY KEY AUTO_INCREMENT,
+                    purchase_id INT,
                     part_id INT,
                     part_name VARCHAR(100),
                     requested_by VARCHAR(50),
