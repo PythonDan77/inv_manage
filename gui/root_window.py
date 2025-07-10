@@ -38,6 +38,7 @@ def create_main_window(user_info):
     truck_png = tk.PhotoImage(file=asset_path("shipping.png"))
     supplier_png = tk.PhotoImage(file=asset_path("supplier.png"))
     user_png = tk.PhotoImage(file=asset_path("user.png"))
+    assembly_png = tk.PhotoImage(file=asset_path("assembly.png"))
     
     #Small png and title bar (bg='#010c48')
     titleLabel = tk.Label(root, text='         Inventory Management', 
@@ -105,16 +106,23 @@ def create_main_window(user_info):
     supplier_button.pack(fill='x')
 
     #Sales button with cart png(25 px)
-    sales_button = tk.Button(leftFrame, text='Sales', font=('times new roman', 16, 'bold'), image=cart_png, compound='left', anchor='w')
-    sales_button.image = cart_png
-    sales_button.pack(fill='x')
+    orders_button = tk.Button(leftFrame, text='Orders', font=('times new roman', 16, 'bold'), image=cart_png, compound='left', anchor='w')
+    orders_button.image = cart_png
+    orders_button.pack(fill='x')
 
-    #Shipping button with truck png(25 px)
-    shipping_button = tk.Button(leftFrame, text='Shipping', font=('times new roman', 16, 'bold'), image=truck_png, compound='left', anchor='w')
-    shipping_button.image = truck_png
-    shipping_button.pack(fill='x')
+    sub_assembly_button = tk.Button(leftFrame, text='Assembly', font=('times new roman', 16, 'bold'), image=assembly_png, compound='left', anchor='w')
+    sub_assembly_button.image = assembly_png
+    sub_assembly_button.pack(fill='x')
 
-    #Shipping button with truck png(25 px)
+    #Assembly button with assy png(25 px)
+    assembly_button = tk.Button(leftFrame, text='Assembly', font=('times new roman', 16, 'bold'), image=assembly_png, compound='left', anchor='w')
+    assembly_button.image = assembly_png
+    assembly_button.pack(fill='x')
+
+    products_button = tk.Button(leftFrame, text='Products', font=('times new roman', 16, 'bold'), image=assembly_png, compound='left', anchor='w')
+    products_button.image = assembly_png
+    products_button.pack(fill='x')
+
     if user_info['role'] in ['manager', 'admin']:
         user_button = tk.Button(leftFrame, text='Users', 
                                         font=('times new roman', 16, 'bold'), 

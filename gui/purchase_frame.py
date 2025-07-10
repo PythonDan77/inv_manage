@@ -262,6 +262,8 @@ def open_received_popup(user, id_num):
                 received_now = qty
                 total_outstanding = result[8]
                 remaining = total_outstanding - received_now
+                if remaining < 0:
+                    remaining = 0
                 note = f"Received {received_now}/{result[4]} on {set_date}. {remaining} remaining."
 
                 # Insert into purchase_history always (log every receive event)
@@ -469,7 +471,7 @@ def history_popup():
     history_treeview.column('request_date', width=150)
     history_treeview.column('purchase_date', width=150)
     history_treeview.column('receive_date', width=150)
-    history_treeview.column('notes', width=300)
+    history_treeview.column('notes', width=350)
     
     def hist_treeview():
         try:
@@ -687,7 +689,7 @@ def purchase_frame(parent, user_info):
     purchase_treeview.column('requested_by', width=170)
     purchase_treeview.column('status', width=175)
     purchase_treeview.column('request_date', width=150)
-    purchase_treeview.column('notes', width=300)
+    purchase_treeview.column('notes', width=350)
     purchase_treeview.column('purchased_by', width=175)
     purchase_treeview.column('purchase_qty', width=120)
     purchase_treeview.column('purchase_date', width=150)
