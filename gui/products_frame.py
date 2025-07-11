@@ -16,7 +16,7 @@ def treeview():
             products_treeview.insert('', 'end', values=record)
 
 # Check to make sure a row is selected to either update or delete.
-def row_select_check(product_name, product_number, update=False, delete=False):
+def row_select_check(product_name, product_number, inventory_item_entry=None, item_qty_entry=None, add_bom_button=None, update=False, delete=False):
     
     selected = products_treeview.selection()
     if not selected:
@@ -30,7 +30,7 @@ def row_select_check(product_name, product_number, update=False, delete=False):
     if update:
         add_update_item(product_name, product_number, True, id_num)
     elif delete:
-        delete_item(product_name, product_number, id_num)
+        delete_item(product_name, product_number, inventory_item_entry, item_qty_entry, add_bom_button, id_num)
 
 def add_update_item(product_name, product_number, update=False, cur_id=None):
 
@@ -86,19 +86,26 @@ def add_update_item(product_name, product_number, update=False, cur_id=None):
         messagebox.showerror("Database Error", str(e))
 
 # Delete the selected row/item.
-def delete_item(product_name, product_number, id_num):
-
-    result = messagebox.askyesno('Confirm', 'Do you want to delete this record?')
+# Delete the selected row/item.
+def delete_item(product_name, product_number, inventory_item_entry, item_qty_entry, add_bom_button, id_num):
+    result = messagebox.askyesno('Confirm', 'Do you want to delete this product and the BOM?')
     if result:
         try:
             conn = get_conn()
             with conn.cursor() as cur:
-                cur.execute('DELETE FROM products WHERE id=%s',(id_num,))
+                # First, delete related BOM entries
+                cur.execute('DELETE FROM bill_of_materials WHERE product_id=%s', (id_num,))
+                # Then delete the product
+                cur.execute('DELETE FROM products WHERE id=%s', (id_num,))
             conn.commit()
             treeview()
             messagebox.showinfo('Success','Deleted Successfully.')
-            product_name.delete(0,tk.END)
-            product_number.delete(0,tk.END)
+            product_name.delete(0, tk.END)
+            product_number.delete(0, tk.END)
+            inventory_item_entry.delete(0, tk.END)
+            add_bom_button.config(state='disabled')
+            item_qty_entry.delete(0, tk.END)
+
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
 
@@ -201,7 +208,10 @@ def products_frame(parent, user_info):
                                          width= 8, 
                                          cursor='hand2',
                                          command=lambda: row_select_check(product_name_entry, 
-                                                                  product_id_entry,
+                                                                  product_id_entry, 
+                                                                  inventory_item_entry, 
+                                                                  item_qty_entry,
+                                                                  add_bom_button,
                                                                   delete=True)
                                          )
                                         
@@ -319,35 +329,64 @@ def products_frame(parent, user_info):
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
 
+    # pop up window to search through inventory items.
     def open_part_search_popup():
         popup = tk.Toplevel()
         popup.title("Select Inventory Item")
-        popup.geometry("800x300+650+400")
-        popup.grab_set()  # Makes the popup modal
+        popup.geometry("800x400+650+400")
+        popup.grab_set()
 
-        # Treeview for inventory items
+        # --- Search Bar ---
+        search_frame = tk.Frame(popup)
+        search_frame.pack(pady=5)
+
+        tk.Label(search_frame, text="Search Part Name:").pack(side=tk.LEFT, padx=5)
+        search_var = tk.StringVar()
+        search_entry = tk.Entry(search_frame, textvariable=search_var, width=40)
+        search_entry.pack(side=tk.LEFT, padx=5)
+
+        # --- Treeview with Scrollbar ---
+        tree_frame = tk.Frame(popup)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
         columns = ("id", "part_name", "part_number")
-        tree = ttk.Treeview(popup, columns=columns, show="headings")
-        tree.heading("id", text="ID")
-        tree.heading("part_name", text="Part Name")
-        tree.heading("part_number", text="Part Number")
+        tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=10)
+        for col in columns:
+            tree.heading(col, text=col.replace("_", " ").title())
 
-        # Fetch inventory from database
-        try:
-            conn = get_conn()
-            with conn.cursor() as cur:
-                cur.execute("SELECT id, part_name, part_number FROM inventory_items")
-                rows = cur.fetchall()
-            for row in rows:
-                tree.insert("", "end", values=row)
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
-            popup.destroy()
-            return
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=vsb.set)
+        vsb.pack(side=tk.RIGHT, fill=tk.Y)
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        def load_inventory(filter_text=""):
+            tree.delete(*tree.get_children())
+            try:
+                conn = get_conn()
+                with conn.cursor() as cur:
+                    if filter_text:
+                        query = """
+                            SELECT id, part_name, part_number
+                            FROM inventory_items
+                            WHERE part_name LIKE %s
+                        """
+                        cur.execute(query, (f"%{filter_text}%",))
+                    else:
+                        cur.execute("SELECT id, part_name, part_number FROM inventory_items")
+                    rows = cur.fetchall()
+                    for row in rows:
+                        tree.insert("", "end", values=row)
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+                popup.destroy()
 
-        # Button Frame
+        def search_inventory():
+            search_term = search_var.get().strip()
+            load_inventory(search_term)
+
+        tk.Button(search_frame, text="Search", command=search_inventory).pack(side=tk.LEFT, padx=5)
+
+        # --- Button Frame ---
         btn_frame = tk.Frame(popup)
         btn_frame.pack(pady=10)
 
@@ -359,10 +398,8 @@ def products_frame(parent, user_info):
             values = tree.item(selected[0], "values")
             part_id, part_name, part_number = values
 
-            # Store selected ID in a global or outer variable
             selected_part["id"] = int(part_id)
 
-            # Update the entry field with the part name
             inventory_item_entry.config(state="normal")
             inventory_item_entry.delete(0, tk.END)
             inventory_item_entry.insert(0, part_name)
@@ -376,6 +413,10 @@ def products_frame(parent, user_info):
         tk.Button(btn_frame, text="Select", command=on_select).pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="Cancel", command=on_cancel).pack(side=tk.LEFT, padx=5)
 
+        # Initial load of full inventory
+        load_inventory()
+
+    # Add the BOM items to the table
     def add_bom_item():
         selected = products_treeview.selection()
         content_dict = products_treeview.item(selected)
@@ -410,26 +451,45 @@ def products_frame(parent, user_info):
         except Exception as e:
             print(e)
             messagebox.showerror("Error", str(e))
-    
+
+    # When a treeview item is selected (Product)
     def on_tree_select(event):
         selected = products_treeview.selection()
-        if selected:
-            inventory_item_entry.config(state="readonly")
-            item_qty_entry.config(state='normal')
-            item_search_button.config(state='normal')
-            add_bom_button.config(state='normal')
+        if not selected:
+            product_name_entry.delete(0, tk.END)
+            product_id_entry.delete(0, tk.END)
+            inventory_item_entry.config(state='normal')
+            inventory_item_entry.delete(0, tk.END)
+            inventory_item_entry.config(state='readonly')
+            item_qty_entry.delete(0, tk.END)
+            for item in bom_treeview.get_children():
+                bom_treeview.delete(item)
+            return
 
         content_dict = products_treeview.item(selected)
         row_data = content_dict['values']
 
-        product_name_entry.delete(0,tk.END)
-        product_id_entry.delete(0,tk.END)
-        product_name_entry.insert(0,row_data[1])
-        product_id_entry.insert(0,row_data[2])
+        if len(row_data) < 3:
+            return  # Not enough data in row to safely unpack (avoid out-of-range error)
 
-        # Use product_id to refresh BOM view
-        product_id = int(row_data[0])
-        refresh_bom_treeview(product_id)
+        # Enable form fields
+        inventory_item_entry.config(state="readonly")
+        item_qty_entry.config(state='normal')
+        item_search_button.config(state='normal')
+        add_bom_button.config(state='normal')
+
+        # Fill entry fields with product data
+        product_name_entry.delete(0, tk.END)
+        product_id_entry.delete(0, tk.END)
+        product_name_entry.insert(0, row_data[1])
+        product_id_entry.insert(0, row_data[2])
+
+        # Refresh BOM Treeview
+        try:
+            product_id = int(row_data[0])
+            refresh_bom_treeview(product_id)
+        except ValueError:
+            messagebox.showerror("Invalid Data", "Product ID is not an integer.")
 
     products_treeview.bind("<<TreeviewSelect>>", on_tree_select)
 
