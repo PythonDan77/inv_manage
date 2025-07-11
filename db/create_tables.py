@@ -72,3 +72,20 @@ def ensure_tables_exist():
                     notes TEXT
                 )"""
         )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS products (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    product_name VARCHAR(100),
+                    product_code VARCHAR(50)
+                )"""
+        )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS bill_of_materials (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    product_id INT,                  
+                    part_id INT,                      
+                    quantity_needed INT,
+                    FOREIGN KEY (product_id) REFERENCES products(id),
+                    FOREIGN KEY (part_id) REFERENCES inventory_items(id)
+                )"""
+        )

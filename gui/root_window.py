@@ -3,6 +3,7 @@ from gui.inventory_frame import inventory_frame
 from gui.supplier_frame import supplier_frame
 from gui.purchase_frame import purchase_frame
 from gui.user_frame import user_frame
+from gui.products_frame import products_frame
 from gui.asset_path import asset_path
 import time
 
@@ -39,6 +40,7 @@ def create_main_window(user_info):
     supplier_png = tk.PhotoImage(file=asset_path("supplier.png"))
     user_png = tk.PhotoImage(file=asset_path("user.png"))
     assembly_png = tk.PhotoImage(file=asset_path("assembly.png"))
+    products_png = tk.PhotoImage(file=asset_path("guitar-amplifier.png"))
     
     #Small png and title bar (bg='#010c48')
     titleLabel = tk.Label(root, text='         Inventory Management', 
@@ -119,8 +121,13 @@ def create_main_window(user_info):
     assembly_button.image = assembly_png
     assembly_button.pack(fill='x')
 
-    products_button = tk.Button(leftFrame, text='Products', font=('times new roman', 16, 'bold'), image=assembly_png, compound='left', anchor='w')
-    products_button.image = assembly_png
+    products_button = tk.Button(leftFrame, text='Products', 
+                                           font=('times new roman', 16, 'bold'), 
+                                           image=products_png, 
+                                           compound='left', 
+                                           anchor='w',
+                                           command= lambda: forget_last(products_frame, root, user_info))
+    products_button.image = products_png
     products_button.pack(fill='x')
 
     if user_info['role'] in ['manager', 'admin']:
