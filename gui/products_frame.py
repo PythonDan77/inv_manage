@@ -270,17 +270,17 @@ def products_frame(parent, user_info):
         search_term = bom_search_entry.get().strip().lower()
         bom_treeview.delete(*bom_treeview.get_children())
         for row in bom_data:
-            _, part_name, part_number, qty = row
+            f_bom_id, part_name, part_number, qty = row
             if search_term in part_name.lower():
-                bom_treeview.insert("", "end", values=(part_name, part_number, qty))
+                bom_treeview.insert("", "end", values=(f_bom_id, part_name, part_number, qty))
 
     def reset_bom_tree():
         bom_search_entry.delete(0, tk.END)  # Clear the search box
         bom_treeview.delete(*bom_treeview.get_children())
 
         for row in bom_data:
-            _, part_name, part_number, qty = row
-            bom_treeview.insert("", "end", values=(part_name, part_number, qty))
+            f_bom_id, part_name, part_number, qty = row
+            bom_treeview.insert("", "end", values=(f_bom_id, part_name, part_number, qty))
         
     part_name_label = tk.Label(search_frame, text='Part Name', font=('times new roman', 10, 'bold'), bg='white')
     part_name_label.grid(row=0, column=1, padx=(0,10))
@@ -359,7 +359,7 @@ def products_frame(parent, user_info):
         # Pop-up
         popup = tk.Toplevel()
         popup.title("Update Quantity")
-        popup.geometry("300x150")
+        popup.geometry("300x150+800+450")
         popup.grab_set()
 
         tk.Label(popup, text=f"Update quantity for '{part_name}'").pack(pady=10)
@@ -393,13 +393,45 @@ def products_frame(parent, user_info):
                                          command= lambda: update_bom_quantity()
                                         )
     update_button.grid(row=0, column=1, padx=(10,0), pady=20)
+    
+    def delete_bom_item():
+        selected = bom_treeview.selection()
+        if not selected:
+            messagebox.showwarning("No Selection", "Please select a BOM item to delete.")
+            return
+
+        values = bom_treeview.item(selected[0], "values")
+        bom_id = values[0]  # assuming bom_id is the first column
+
+        confirm = messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this BOM item?")
+        if not confirm:
+            return
+
+        selected_prod_id = products_treeview.selection()
+        id_content = products_treeview.item(selected_prod_id)
+        new_row_data = id_content["values"]
+        prod_id = int(new_row_data[0])
+
+        try:
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM bill_of_materials WHERE id = %s", (bom_id,))
+            conn.commit()
+
+            # Refresh the tree
+            refresh_bom_treeview(prod_id)
+            messagebox.showinfo("Deleted", "BOM item deleted successfully.")
+
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
 
     delete_button = tk.Button(button_frame, text='Delete', 
                                          font=('times new roman', 12), 
                                          bg='#0f4d7d', 
                                          fg='white', 
                                          width= 8, 
-                                         cursor='hand2'
+                                         cursor='hand2',
+                                         command= lambda: delete_bom_item()
                                          )
                                         
     delete_button.grid(row=0, column=2, padx=(20,0), pady=20)
