@@ -5,6 +5,8 @@ from db.connection import get_conn
 from datetime import datetime
 from tkinter import messagebox
 
+bom_data = []
+
 # Used to populate the treeview form with products.
 def treeview():
     conn = get_conn()
@@ -86,7 +88,6 @@ def add_update_item(product_name, product_number, update=False, cur_id=None):
         messagebox.showerror("Database Error", str(e))
 
 # Delete the selected row/item.
-# Delete the selected row/item.
 def delete_item(product_name, product_number, inventory_item_entry, item_qty_entry, add_bom_button, id_num):
     result = messagebox.askyesno('Confirm', 'Do you want to delete this product and the BOM?')
     if result:
@@ -109,10 +110,11 @@ def delete_item(product_name, product_number, inventory_item_entry, item_qty_ent
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
 
+
 def products_frame(parent, user_info):
     global products_treeview
     selected_part = {"id": None}
-
+    
     products_frame = tk.Frame(parent, width=1100, height=650, bg='white')
     products_frame.place(x=201, y=100)
 
@@ -224,14 +226,14 @@ def products_frame(parent, user_info):
 
     #Detail frame for the entry and label fields in right frame.
     right_detail_frame = tk.Frame(right_frame, width=450, height=150, bg='white')
-    right_detail_frame.place(x=60, y=15, relwidth=1)
+    right_detail_frame.place(x=60, y=0, relwidth=1)
 
     inventory_item_label = tk.Label(right_detail_frame, text='Inventory Item', font=('times new roman', 10, 'bold'), bg='white')
-    inventory_item_label.grid(row=0, column=0,padx=10, pady=(20,0))
+    inventory_item_label.grid(row=0, column=0,padx=10, pady=(10,0))
     inventory_item_entry = tk.Entry(right_detail_frame, font=('times new roman', 11), bg='lightyellow', width=25, state="disabled")
-    inventory_item_entry.grid(row=0, column=1, padx=10, pady=(20,0) )
+    inventory_item_entry.grid(row=0, column=1, padx=10, pady=(10,0) )
 
-    item_search_button = tk.Button(right_detail_frame, text='Search', 
+    item_search_button = tk.Button(right_detail_frame, text='Item Search', 
                                          font=('times new roman', 12), 
                                          bg='#0f4d7d', 
                                          fg='white', 
@@ -241,7 +243,7 @@ def products_frame(parent, user_info):
                                          command=lambda: open_part_search_popup()
                                          )
                                         
-    item_search_button.grid(row=0, column=2, padx=10, pady=(20,0))
+    item_search_button.grid(row=0, column=2, padx=10, pady=(10,0))
 
     item_qty_label = tk.Label(right_detail_frame, text='Qty Used', font=('times new roman', 10, 'bold'), bg='white')
     item_qty_label.grid(row=1, column=0, padx=10, pady=20)
@@ -260,26 +262,77 @@ def products_frame(parent, user_info):
                                         
     add_bom_button.grid(row=1, column=2, padx=10, pady=20)
 
+    #Search Frame
+    search_frame = tk.Frame(right_frame, bg='white')
+    search_frame.place(x=60, y=140, relwidth=1)
+
+    def filter_bom_tree():
+        search_term = bom_search_entry.get().strip().lower()
+        bom_treeview.delete(*bom_treeview.get_children())
+        for row in bom_data:
+            _, part_name, part_number, qty = row
+            if search_term in part_name.lower():
+                bom_treeview.insert("", "end", values=(part_name, part_number, qty))
+
+    def reset_bom_tree():
+        bom_search_entry.delete(0, tk.END)  # Clear the search box
+        bom_treeview.delete(*bom_treeview.get_children())
+
+        for row in bom_data:
+            _, part_name, part_number, qty = row
+            bom_treeview.insert("", "end", values=(part_name, part_number, qty))
+        
+    part_name_label = tk.Label(search_frame, text='Part Name', font=('times new roman', 10, 'bold'), bg='white')
+    part_name_label.grid(row=0, column=1, padx=(0,10))
+
+    bom_search_entry = tk.Entry(search_frame, font=('times new roman', 12), bg='lightyellow')
+    bom_search_entry.grid(row=0, column=2)
+
+    search_button = tk.Button(search_frame, text='Search', 
+                                            font=('times new roman', 12), 
+                                            bg='#0f4d7d', 
+                                            fg='white', 
+                                            width= 6, 
+                                            cursor='hand2',
+                                            command=lambda: filter_bom_tree()
+                                            )
+    search_button.grid(row=0, column=3, padx=20)
+
+    show_button = tk.Button(search_frame, text='All', 
+                                          font=('times new roman', 12), 
+                                          bg='#0f4d7d', 
+                                          fg='white', 
+                                          width= 6, 
+                                          cursor='hand2',
+                                          command= lambda: reset_bom_tree()
+                                        )
+    show_button.grid(row=0, column=4)
+
+
+
+    # Frame for the bom treeview
     right_mid_frame = tk.Frame(right_frame, width=450, height=240, bg='white')
-    right_mid_frame.place(x=0, y=150, relwidth=1)
+    right_mid_frame.place(x=0, y=170, relwidth=1)
     
     r_vertical_scrollbar = tk.Scrollbar(right_mid_frame, orient='vertical')
 
-    bom_treeview = ttk.Treeview(right_mid_frame,columns=('part_name', 'part_number', 'qty_used'), 
+    bom_treeview = ttk.Treeview(right_mid_frame,columns=('bom_id', 'part_name', 'part_number', 'qty_used'), 
                                             show='headings', 
                                             yscrollcommand=r_vertical_scrollbar.set, height=11)
   
     r_vertical_scrollbar.pack(side='right', fill='y', pady=(10, 0))
     r_vertical_scrollbar.config(command=bom_treeview.yview)
     bom_treeview.pack(pady= (10, 0))
-
+    
+    bom_treeview.heading("bom_id", text="BOM ID")
     bom_treeview.heading('part_name', text='Part name')
     bom_treeview.heading('part_number', text='Part number')
     bom_treeview.heading('qty_used', text='Qty used')
-  
-    bom_treeview.column('part_name', width=225)
-    bom_treeview.column('part_number', width=225)
-    bom_treeview.column('qty_used', width=100)
+    
+    bom_treeview.column('bom_id', width=100)
+    bom_treeview.column('part_name', width=200)
+    bom_treeview.column('part_number', width=200)
+    bom_treeview.column('qty_used', width=90)
 
     r_bottom_frame = tk.Frame(right_frame, width=450, height=150, bg='white')
     r_bottom_frame.place(x=0, y=430, relwidth=1)
@@ -287,14 +340,59 @@ def products_frame(parent, user_info):
     button_frame = tk.Frame(r_bottom_frame, width=450, height=150, bg='white')
     button_frame.pack(pady= (30, 0))
 
+    def update_bom_quantity():
+        selected = bom_treeview.selection()
+        if not selected:
+            messagebox.showwarning("No Selection", "Please select an item to update.")
+            return
+
+        values = bom_treeview.item(selected[0], "values")
+        bom_id = int(values[0])
+        part_name = values[1]
+        current_qty = values[3]
+
+        selected_prod_id = products_treeview.selection()
+        id_content = products_treeview.item(selected_prod_id)
+        new_row_data = id_content["values"]
+        prod_id = int(new_row_data[0])
+    
+        # Pop-up
+        popup = tk.Toplevel()
+        popup.title("Update Quantity")
+        popup.geometry("300x150")
+        popup.grab_set()
+
+        tk.Label(popup, text=f"Update quantity for '{part_name}'").pack(pady=10)
+
+        qty_var = tk.StringVar(value=current_qty)
+        tk.Entry(popup, textvariable=qty_var).pack(pady=5)
+
+        def save_qty():
+            try:
+                new_qty = int(qty_var.get())
+                conn = get_conn()
+                with conn.cursor() as cur:
+                    cur.execute("UPDATE bill_of_materials SET quantity_needed = %s WHERE id = %s", (new_qty, bom_id))
+                conn.commit()
+                popup.destroy()
+                refresh_bom_treeview(prod_id)
+            except ValueError:
+                messagebox.showerror("Invalid Input", "Quantity must be a number.")
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+
+        tk.Button(popup, text="Save", command=save_qty).pack(side=tk.LEFT, padx=10, pady=10)
+        tk.Button(popup, text="Cancel", command=popup.destroy).pack(side=tk.RIGHT, padx=10, pady=10)
+
     update_button = tk.Button(button_frame, text='Update', 
                                          font=('times new roman', 12), 
                                          bg='#0f4d7d', 
                                          fg='white', 
                                          width= 8, 
-                                         cursor='hand2'
+                                         cursor='hand2',
+                                         command= lambda: update_bom_quantity()
                                         )
-    update_button.grid(row=0, column=1, padx=(20,0), pady=20)
+    update_button.grid(row=0, column=1, padx=(10,0), pady=20)
 
     delete_button = tk.Button(button_frame, text='Delete', 
                                          font=('times new roman', 12), 
@@ -307,9 +405,10 @@ def products_frame(parent, user_info):
     delete_button.grid(row=0, column=2, padx=(20,0), pady=20)
 
     def refresh_bom_treeview(product_id):
-        # Clear existing BOM Treeview entries
-        for item in bom_treeview.get_children():
-            bom_treeview.delete(item)
+        global bom_data
+        bom_data = []  # reset list
+
+        bom_treeview.delete(*bom_treeview.get_children())
 
         try:
             conn = get_conn()
@@ -320,11 +419,11 @@ def products_frame(parent, user_info):
                     JOIN inventory_items i ON b.part_id = i.id
                     WHERE b.product_id = %s
                 """, (product_id,))
-                bom_rows = cur.fetchall()
+                bom_data = cur.fetchall()
 
-            for bom_row in bom_rows:
-                bom_id, part_name, part_number, qty = bom_row
-                bom_treeview.insert("", "end", iid=bom_id, values=(part_name, part_number, qty))
+            for row in bom_data:
+                bom_id, part_name, part_number, qty = row
+                bom_treeview.insert("", "end", values=(bom_id, part_name, part_number, qty))
 
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
