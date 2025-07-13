@@ -102,8 +102,7 @@ def ensure_tables_exist():
                     quantity INT,
                     notes VARCHAR(50),
                     status VARCHAR(50),
-                    builder_name VARCHAR(50),
-                    created_at DATETIME,
+                    created_at VARCHAR(20),
                     created_by VARCHAR(50),
                     FOREIGN KEY (product_id) REFERENCES products(id)
                 )"""

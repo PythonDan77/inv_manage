@@ -7,6 +7,7 @@ from tkinter import messagebox
 
 current_order_customizations = []
 product_dict = {}
+selected_order_id = 0
 
 # Used to populate the treeview form with inventory items. It is called after inv_treeview is created in inventory_frame(). Also add_update_item()
 def treeview():
@@ -34,7 +35,7 @@ def validate_form_inputs(customer_name, customer_type, po_num, product_id, produ
         return None
 
     if product_type == "Select..":
-        messagebox.showerror('Empty Field', 'Select a Product.')
+        messagebox.showerror('Empty Field', 'Select a Product Type.')
         return None
 
     if not voltage:
@@ -66,6 +67,31 @@ def validate_form_inputs(customer_name, customer_type, po_num, product_id, produ
             int(qty),
             notes.strip()
         )
+# Delete the selected row/item.
+def delete_item(customer_name, customer_type, po_num, product, product_type, qty, notes, voltage, cur_id):
+
+    result = messagebox.askyesno('Confirm', 'Do you want to delete this order?')
+    if result:
+        try:
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM order_customizations WHERE order_id = %s", (cur_id,))
+                cur.execute('DELETE FROM orders WHERE id=%s',(cur_id,))
+                
+            conn.commit()
+            treeview()
+            messagebox.showinfo('Success','Deleted Successfully.')
+            clear_fields((
+                        customer_name,
+                        po_num,
+                        qty,
+                        notes,
+                        voltage),
+                        combobox1=customer_type,
+                        combobox2=product,
+                        combobox3=product_type)
+        except Exception as e:
+            messagebox.showerror("Database Error", str(e))
 
 # Check to make sure a row is selected to either update or delete.
 def row_select_check(customer_name, customer_type, po_num, product, product_type, qty, notes, voltage, update=False, delete=False):
@@ -78,9 +104,9 @@ def row_select_check(customer_name, customer_type, po_num, product, product_type
     # Get the currently selected ID of the row.
     data = orders_treeview.item(selected)
     id_num = data['values'][0]
-
+    
     if update:
-        add_update_item(customer_name, customer_type, po_num, product, product_type, qty, notes, voltage, True, id_num)
+        add_update_item(customer_name, customer_type, po_num, product, product_type, qty, notes, voltage, update=True, cur_id=id_num)
     elif delete:
         delete_item(customer_name, customer_type, po_num, product, product_type, qty, notes, voltage, id_num)
 
@@ -99,42 +125,61 @@ def add_update_item(customer_name, customer_type, po_num, product, product_type,
             conn = get_conn()
             with conn.cursor() as cur:
                 if update:
+                    
                     cur.execute('SELECT * FROM orders WHERE id = %s', (cur_id,))
                     current_db_data = cur.fetchone()
                     if not current_db_data:
                         messagebox.showerror("Error", 'The item does not exist.')
                         return
 
-                    current_db_data = current_db_data[1:]
-                    if current_db_data == validated_data:
-                        messagebox.showinfo('No Changes','No Changes Detected.')
-                        return
-                    else:
-                        cur.execute("""UPDATE orders SET part_name=%s, 
-                                    customer_name=%s, 
-                                    customer_type=%s, 
-                                    po_number=%s, 
-                                    product_id=%s,  
-                                    product_type=%s,
-                                    voltage=%s,
-                                    quantity=%s,
-                                    notes=%s WHERE id=%s""",
-                                    
-                                    (*validated_data,
-                                    cur_id)
-                                    )
-
-                        messagebox.showinfo('Success','Update successful.')
-                else:
+                    # current_db_data = current_db_data[1:-3]
+                    # if current_db_data == validated_data:
+                    #     messagebox.showinfo('No Changes','No Changes Detected.')
+                    #     return
+                    # else:
                     
+                    cur.execute("""UPDATE orders SET 
+                                customer_name=%s, 
+                                customer_type=%s, 
+                                po_number=%s, 
+                                product_id=%s,  
+                                product_type=%s,
+                                voltage=%s,
+                                quantity=%s,
+                                notes=%s WHERE id=%s""",
+                                
+                                (*validated_data,
+                                cur_id)
+                                )
+
+                    if current_order_customizations:
+                        # Clear old customizations
+                        cur.execute("DELETE FROM order_customizations WHERE order_id = %s", (cur_id,))
+
+                        # Insert updated customizations
+                        for custom in current_order_customizations:
+                            cur.execute("""
+                                INSERT INTO order_customizations (order_id, option_name, option_value, part_id, quantity)
+                                VALUES (%s, %s, %s, %s, %s)
+                            """, (
+                                cur_id,
+                                custom["option_name"],
+                                custom["option_value"],
+                                custom["part_id"],
+                                custom["quantity"]
+                            ))
+
+                    messagebox.showinfo('Success','Update successful.')
+                else:
+                    set_date = datetime.today().strftime('%Y-%m-%d')
                     cur.execute(
                         """INSERT INTO orders (customer_name, customer_type, po_number, product_id, product_type,
-                                               voltage, quantity, notes, status, builder_name,
-                                               created_at, created_by) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s)""",
+                                               voltage, quantity, notes, status,
+                                               created_at, created_by) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                         (
                         *validated_data,
                         "Pending",
-                        "",
+                        set_date,
                         user
                         )
                     )
@@ -157,11 +202,79 @@ def add_update_item(customer_name, customer_type, po_num, product, product_type,
         
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
+    
+# Clears data from all fields. Highlighted row is also cleared when the CLEAR button is pressed, but not when called from select_data().
+def clear_fields(all_fields, combobox1, combobox2, combobox3, tab=False):
+    global selected_order_id
 
+    for field in all_fields:
+        field.delete(0,tk.END)
+
+    combobox1.set("Select..")
+    combobox2.set("Select..")
+    combobox3.set("Select..")
+
+    if tab:
+        selected_order_id = 0
+        orders_treeview.selection_remove(orders_treeview.selection())
+
+def select_data(event, all_fields, combobox1, combobox2, combobox3):
+    global selected_order_id
+
+    index = orders_treeview.selection()
+    if index:
+        content_dict = orders_treeview.item(index)
+        row_data = content_dict['values']
+        
+        clear_fields(all_fields, combobox1=combobox1, combobox2=combobox2, combobox3=combobox3)
+
+        selected_order_id = row_data[0]
+        
+        all_fields[0].insert(0, row_data[1])
+        all_fields[1].insert(0, row_data[3])
+        all_fields[2].insert(0, row_data[7])
+        all_fields[3].insert(0, row_data[8])
+        all_fields[4].insert(0, row_data[6])
+
+        combobox1.set(row_data[2])
+        for key, value in product_dict.items():
+            if value == row_data[4]:
+                combobox2.set(key)
+        combobox3.set(row_data[5])
+
+# Function verifies data has been used to search the database and then retrieves the data.
+def search_item(search_option, value):
+    if search_option == 'Select..':
+        messagebox.showerror('Error','Select an option.')
+    elif not value:
+        messagebox.showerror('Error','Enter a value to search.')
+    else:
+        try:
+            search_option = search_option.replace(' ', '_')
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute(f'SELECT * FROM orders WHERE {search_option} LIKE %s', f'%{value}%')
+                result = cur.fetchall()
+                orders_treeview.delete(*orders_treeview.get_children())
+                for record in result:
+                    orders_treeview.insert('', 'end', values=record)
+
+        except Exception as e:
+            messagebox.showerror("Database Error", str(e))
+
+# Reloads all data and resets the search options.
+def search_all(search_entry, search_combobox):
+    treeview()
+    search_entry.delete(0,'end')
+    search_combobox.set('Select...')
+
+# Clear the highlight from the combobox. Trigger in the main function at the bottom.
+def on_select(event, combobox):
+    combobox.selection_clear()
 
 def orders_frame(parent, user_info):
     global orders_treeview
-    
+
     orders_frame = tk.Frame(parent, width=1100, height=650, bg='white')
     orders_frame.place(x=201, y=100)
 
@@ -184,7 +297,7 @@ def orders_frame(parent, user_info):
     search_frame = tk.Frame(top_frame, bg='white')
     search_frame.pack()
     #Drop Down Menu
-    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Cust name', 'PO'), 
+    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Customer name', 'PO number'), 
                                                  font=('times new roman', 12), 
                                                  state='readonly'
                                                  )
@@ -217,7 +330,7 @@ def orders_frame(parent, user_info):
     vertical_scrollbar = tk.Scrollbar(top_frame, orient='vertical')
     
     orders_treeview = ttk.Treeview(top_frame, columns=('id', 'customer_name', 'customer_type', 'po_number', 'product_id', 'product_type', 
-                                                       'voltage', 'qty', 'notes', 'status', 'builder', 'created_at', 'created_by'), 
+                                                       'voltage', 'qty', 'notes', 'status', 'created_at', 'created_by'), 
                                            show='headings',
                                            yscrollcommand=vertical_scrollbar.set,
                                            xscrollcommand=horizontal_scrollbar.set)
@@ -237,7 +350,6 @@ def orders_frame(parent, user_info):
     orders_treeview.heading('qty', text='Qty')
     orders_treeview.heading('notes', text='Notes')
     orders_treeview.heading('status', text='Status')
-    orders_treeview.heading('builder', text='Builder')
     orders_treeview.heading('created_at', text='Order created')
     orders_treeview.heading('created_by', text='Created by')
     
@@ -251,7 +363,6 @@ def orders_frame(parent, user_info):
     orders_treeview.column('qty', width=90)
     orders_treeview.column('notes', width=300)
     orders_treeview.column('status', width=150)
-    orders_treeview.column('builder', width=150)
     orders_treeview.column('created_at', width=175)
     orders_treeview.column('created_by', width=150)
 
@@ -304,8 +415,8 @@ def orders_frame(parent, user_info):
     product_combobox.set('Select..')
     product_combobox.grid(row=1, column=1, padx=10, pady=20)
 
-    product_label = product_combobox.get()
-    product_id = product_dict.get(product_label)
+    # product_label = product_combobox.get()
+    # product_id = product_dict.get(product_label)
     
     product_type_label = tk.Label(detail_frame, text='Product type', font=('times new roman', 10, 'bold'), bg='white')
     product_type_label.grid(row=1, column=2, padx=10, pady=20)
@@ -337,12 +448,12 @@ def orders_frame(parent, user_info):
                                          fg='white', 
                                          width= 20, 
                                          cursor='hand2',
-                                         command= lambda:open_customization_popup()
+                                         command= lambda:open_customization_popup(order_id=selected_order_id)
                                         )
 
     customize_btn.grid(row=2, column=5)
 
-    def open_customization_popup():
+    def open_customization_popup(order_id=None):
         popup = tk.Toplevel()
         popup.title("Add Customizations")
         popup.geometry("825x400+500+300")
@@ -375,6 +486,31 @@ def orders_frame(parent, user_info):
         tree.heading("Part ID", text="Part ID")
         tree.heading("Qty", text="Qty")
         tree.grid(row=4, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
+        
+        def fetch_order_customizations(order_id):
+            try:
+                conn = get_conn()
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        SELECT option_name, option_value, part_id, quantity
+                        FROM order_customizations
+                        WHERE order_id = %s
+                    """, (order_id,))
+                    return cur.fetchall()
+            except Exception as e:
+                messagebox.showerror("DB Error", str(e))
+                return []
+
+        if order_id:
+            existing = fetch_order_customizations(order_id)
+            for opt_name, opt_value, part_id, qty in existing:
+                customizations.append({
+                    "option_name": opt_name,
+                    "option_value": opt_value,
+                    "part_id": part_id,
+                    "quantity": qty
+                })
+                tree.insert("", "end", values=(opt_name, opt_value, part_id, qty))
 
         # Fetch parts when type changes
         def update_part_dropdown(event):
@@ -473,7 +609,7 @@ def orders_frame(parent, user_info):
                                             command=lambda: row_select_check(cust_name_entry.get(),
                                                                          cust_type_combobox.get(),
                                                                          po_entry.get(),
-                                                                         product_id,
+                                                                         product_combobox.get(),
                                                                          product_type_combobox.get(),
                                                                          qty_entry.get(),
                                                                          notes_entry.get(),
@@ -489,15 +625,15 @@ def orders_frame(parent, user_info):
                                             width= 10, 
                                             cursor='hand2',
                                             command=lambda: row_select_check(
-                                                                part_name_entry, 
-                                                                part_num_entry, 
-                                                                qty_entry, 
-                                                                loc_entry, 
-                                                                sup_entry,  
-                                                                low_entry,
-                                                                restock_qty_entry,
-                                                                item_type_combobox,
-                                                                delete=True)
+                                                             cust_name_entry,
+                                                             cust_type_combobox,
+                                                             po_entry,
+                                                             product_combobox,
+                                                             product_type_combobox,
+                                                             qty_entry,
+                                                             notes_entry,
+                                                             voltage_entry,
+                                                             delete=True)
                                                                 )
     delete_button.grid(row=0, column=2, padx=20)
     
@@ -509,17 +645,34 @@ def orders_frame(parent, user_info):
                                            width= 10, 
                                            cursor='hand2', 
                                            command=lambda: clear_fields((
-                                                                  part_name_entry, 
-                                                                  part_num_entry, 
-                                                                  qty_entry, 
-                                                                  loc_entry, 
-                                                                  sup_entry,
-                                                                  low_entry,
-                                                                  restock_qty_entry
-                                                                  ), 
-                                                                  combobox=item_type_combobox,
-                                                                  tab=True)
+                                                             cust_name_entry,
+                                                             po_entry,
+                                                             qty_entry,
+                                                             notes_entry,
+                                                             voltage_entry),
+                                                             combobox1=cust_type_combobox,
+                                                             combobox2=product_combobox,
+                                                             combobox3=product_type_combobox,
+                                                             tab=True)
                                                                   )
     clear_button.grid(row=0, column=3, padx=20)
     
+    # When a field in treeview is clicked, the select_data() function fills the entry fields.
+    orders_treeview.bind('<ButtonRelease-1>', lambda event: select_data(
+                                                            event,
+                                                            (cust_name_entry,
+                                                             po_entry,
+                                                             qty_entry,
+                                                             notes_entry,
+                                                             voltage_entry),
+                                                             cust_type_combobox,
+                                                             product_combobox,
+                                                             product_type_combobox)
+                                                            )
+
+    search_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, search_combobox))
+    cust_type_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, cust_type_combobox))
+    product_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, product_combobox))
+    product_type_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, product_type_combobox))
     
+    return orders_frame
