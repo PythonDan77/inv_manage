@@ -25,8 +25,9 @@ def ensure_tables_exist():
                    low_limit INT,
                    restock_qty INT,
                    item_type VARCHAR(20),
+                   item_category VARCHAR(20),
                    last_receive_date VARCHAR(20),
-                   last_receive_qty VARCHAR(15)   
+                   last_receive_qty VARCHAR(15)
                    )"""
         )
         cur.execute(
@@ -86,6 +87,36 @@ def ensure_tables_exist():
                     part_id INT,                      
                     quantity_needed INT,
                     FOREIGN KEY (product_id) REFERENCES products(id),
+                    FOREIGN KEY (part_id) REFERENCES inventory_items(id)
+                )"""
+        )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS orders (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    customer_name VARCHAR(50),
+                    customer_type VARCHAR(50),
+                    po_number VARCHAR(50),
+                    product_id INT,
+                    product_type VARCHAR(50),
+                    voltage VARCHAR(20),
+                    quantity INT,
+                    notes VARCHAR(50),
+                    status VARCHAR(50),
+                    builder_name VARCHAR(50),
+                    created_at DATETIME,
+                    created_by VARCHAR(50),
+                    FOREIGN KEY (product_id) REFERENCES products(id)
+                )"""
+        )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS order_customizations (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    order_id INT,
+                    option_name VARCHAR(100),     -- e.g., "Tolex"
+                    option_value VARCHAR(100),    -- e.g., "Red Python"
+                    part_id INT,                  -- inventory_items.id
+                    quantity INT DEFAULT 1,
+                    FOREIGN KEY (order_id) REFERENCES orders(id),
                     FOREIGN KEY (part_id) REFERENCES inventory_items(id)
                 )"""
         )

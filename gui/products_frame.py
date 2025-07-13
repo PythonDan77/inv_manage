@@ -34,6 +34,7 @@ def row_select_check(product_name, product_number, inventory_item_entry=None, it
     elif delete:
         delete_item(product_name, product_number, inventory_item_entry, item_qty_entry, add_bom_button, id_num)
 
+ # Add and update products.
 def add_update_item(product_name, product_number, update=False, cur_id=None):
 
     product_name = product_name.strip()
@@ -266,6 +267,7 @@ def products_frame(parent, user_info):
     search_frame = tk.Frame(right_frame, bg='white')
     search_frame.place(x=60, y=140, relwidth=1)
 
+    # Search function called when search button is pressed.
     def filter_bom_tree():
         search_term = bom_search_entry.get().strip().lower()
         bom_treeview.delete(*bom_treeview.get_children())
@@ -274,6 +276,7 @@ def products_frame(parent, user_info):
             if search_term in part_name.lower():
                 bom_treeview.insert("", "end", values=(f_bom_id, part_name, part_number, qty))
 
+    # Function used to repopulate the bom treeview when all button is pressed.
     def reset_bom_tree():
         bom_search_entry.delete(0, tk.END)  # Clear the search box
         bom_treeview.delete(*bom_treeview.get_children())
@@ -308,8 +311,6 @@ def products_frame(parent, user_info):
                                         )
     show_button.grid(row=0, column=4)
 
-
-
     # Frame for the bom treeview
     right_mid_frame = tk.Frame(right_frame, width=450, height=240, bg='white')
     right_mid_frame.place(x=0, y=170, relwidth=1)
@@ -340,6 +341,7 @@ def products_frame(parent, user_info):
     button_frame = tk.Frame(r_bottom_frame, width=450, height=150, bg='white')
     button_frame.pack(pady= (30, 0))
 
+    # Function used to update the selected BOM quantity. A pop up window is created when pressed.
     def update_bom_quantity():
         selected = bom_treeview.selection()
         if not selected:
@@ -394,6 +396,7 @@ def products_frame(parent, user_info):
                                         )
     update_button.grid(row=0, column=1, padx=(10,0), pady=20)
     
+    #Function used to remove an item from the bom table.
     def delete_bom_item():
         selected = bom_treeview.selection()
         if not selected:
@@ -623,7 +626,5 @@ def products_frame(parent, user_info):
             messagebox.showerror("Invalid Data", "Product ID is not an integer.")
 
     products_treeview.bind("<<TreeviewSelect>>", on_tree_select)
-
-
 
     return products_frame

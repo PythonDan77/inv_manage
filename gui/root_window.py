@@ -4,6 +4,7 @@ from gui.supplier_frame import supplier_frame
 from gui.purchase_frame import purchase_frame
 from gui.user_frame import user_frame
 from gui.products_frame import products_frame
+from gui.orders_frame import orders_frame
 from gui.asset_path import asset_path
 import time
 
@@ -108,20 +109,30 @@ def create_main_window(user_info):
     supplier_button.pack(fill='x')
 
     #Sales button with cart png(25 px)
-    orders_button = tk.Button(leftFrame, text='Orders', font=('times new roman', 16, 'bold'), image=cart_png, compound='left', anchor='w')
+    orders_button = tk.Button(leftFrame, text='Orders', 
+                                         font=('times new roman', 16, 'bold'), 
+                                         image=cart_png, 
+                                         compound='left', 
+                                         anchor='w',
+                                         command= lambda: forget_last(orders_frame, root, user_info))
     orders_button.image = cart_png
     orders_button.pack(fill='x')
 
-    sub_assembly_button = tk.Button(leftFrame, text='Assembly', font=('times new roman', 16, 'bold'), image=assembly_png, compound='left', anchor='w')
-    sub_assembly_button.image = assembly_png
-    sub_assembly_button.pack(fill='x')
+    amplifiers_button = tk.Button(leftFrame, text='Amplifiers', font=('times new roman', 16, 'bold'), image=assembly_png, compound='left', anchor='w')
+    amplifiers_button.image = assembly_png
+    amplifiers_button.pack(fill='x')
 
     #Assembly button with assy png(25 px)
-    assembly_button = tk.Button(leftFrame, text='Assembly', font=('times new roman', 16, 'bold'), image=assembly_png, compound='left', anchor='w')
-    assembly_button.image = assembly_png
-    assembly_button.pack(fill='x')
+    pedals_button = tk.Button(leftFrame, text='Pedals', font=('times new roman', 16, 'bold'), image=assembly_png, compound='left', anchor='w')
+    pedals_button.image = assembly_png
+    pedals_button.pack(fill='x')
 
-    products_button = tk.Button(leftFrame, text='Products', 
+    #Assembly button with assy png(25 px)
+    wood_button = tk.Button(leftFrame, text='Woodshop', font=('times new roman', 16, 'bold'), image=assembly_png, compound='left', anchor='w')
+    wood_button.image = assembly_png
+    wood_button.pack(fill='x')
+
+    products_button = tk.Button(leftFrame, text='Assemblies', 
                                            font=('times new roman', 16, 'bold'), 
                                            image=products_png, 
                                            compound='left', 
