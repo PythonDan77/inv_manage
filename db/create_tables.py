@@ -119,3 +119,35 @@ def ensure_tables_exist():
                     FOREIGN KEY (part_id) REFERENCES inventory_items(id)
                 )"""
         )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS amplifier_builds (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    order_id INT NOT NULL,
+                    product_name VARCHAR(100),
+                    customer_name VARCHAR(100),
+                    po_number VARCHAR(50),
+                    voltage VARCHAR(20),
+                    status VARCHAR(50),          
+                    builder_name VARCHAR(100),     
+                    serial_number VARCHAR(100),
+                    notes TEXT,      
+                    created_at VARCHAR(25),      
+                    completed_at VARCHAR(25),     
+
+                    FOREIGN KEY (order_id) REFERENCES orders(id)
+                )"""
+        )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS cabinet_builds (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    order_id INT NOT NULL,
+                    product_name VARCHAR(100),
+                    customer_name VARCHAR(100),
+                    po_number VARCHAR(50),
+                    status VARCHAR(50),               
+                    notes TEXT,       
+                    created_at VARCHAR(25),      
+                    completed_at VARCHAR(25),     
+                    FOREIGN KEY (order_id) REFERENCES orders(id)
+                )"""
+        )

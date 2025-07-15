@@ -5,6 +5,8 @@ from gui.purchase_frame import purchase_frame
 from gui.user_frame import user_frame
 from gui.products_frame import products_frame
 from gui.orders_frame import orders_frame
+from gui.amplifier_frame import amplifier_frame
+from gui.cabinet_frame import cabinet_frame
 from gui.asset_path import asset_path
 import time
 
@@ -118,7 +120,12 @@ def create_main_window(user_info):
     orders_button.image = cart_png
     orders_button.pack(fill='x')
 
-    amplifiers_button = tk.Button(leftFrame, text='Amplifiers', font=('times new roman', 16, 'bold'), image=assembly_png, compound='left', anchor='w')
+    amplifiers_button = tk.Button(leftFrame, text='Amplifiers', 
+                                             font=('times new roman', 16, 'bold'), 
+                                             image=assembly_png, 
+                                             compound='left', 
+                                             anchor='w',
+                                             command=lambda: forget_last(amplifier_frame, root, user_info))
     amplifiers_button.image = assembly_png
     amplifiers_button.pack(fill='x')
 
@@ -128,9 +135,14 @@ def create_main_window(user_info):
     pedals_button.pack(fill='x')
 
     #Assembly button with assy png(25 px)
-    wood_button = tk.Button(leftFrame, text='Woodshop', font=('times new roman', 16, 'bold'), image=assembly_png, compound='left', anchor='w')
-    wood_button.image = assembly_png
-    wood_button.pack(fill='x')
+    cabinets_button = tk.Button(leftFrame, text='Cabinets', 
+                                           font=('times new roman', 16, 'bold'), 
+                                           image=assembly_png, 
+                                           compound='left', 
+                                           anchor='w',
+                                           command=lambda: forget_last(cabinet_frame, root, user_info))
+    cabinets_button.image = assembly_png
+    cabinets_button.pack(fill='x')
 
     products_button = tk.Button(leftFrame, text='Assemblies', 
                                            font=('times new roman', 16, 'bold'), 

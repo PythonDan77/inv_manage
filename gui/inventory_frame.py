@@ -13,7 +13,7 @@ def treeview():
         all_records = cur.fetchall()
         inv_treeview.delete(*inv_treeview.get_children())
         for record in all_records:
-            inv_treeview.insert('', 'end', values=record)
+            inv_treeview.insert('', 'end', values=record,)
 
 # Function used to verify all data in fields is present and of the right type.
 def validate_form_inputs(part_name, part_number, qty, location, supplier, low_limit, restock_qty, item_type, item_category):

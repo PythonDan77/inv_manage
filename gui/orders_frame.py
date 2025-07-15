@@ -196,6 +196,45 @@ def add_update_item(customer_name, customer_type, po_num, product, product_type,
                             custom["part_id"],
                             custom["quantity"]
                             ))
+
+                    # Check if this order is for an amplifier and add data to the amplifier_builds table
+                    if validated_data[4].lower() == 'amplifier':
+                        # Unpack the necessary fields from validated_data or DB
+                        
+                        product_id = validated_data[3]
+                        cur.execute("SELECT product_name FROM products WHERE id = %s", (product_id,))
+                        product_name_row = cur.fetchone()
+                        product_name = product_name_row[0] if product_name_row else "" 
+
+                        customer_name = validated_data[0]
+                        customer_type = validated_data[1]
+                        po_number = validated_data[2]
+                        voltage = validated_data[5]
+                        notes = validated_data[7]
+
+                        # try:
+                        #     cur.execute("SELECT option_name, option_value FROM order_customizations WHERE order_id = %s", (order_id,))
+                        #     customization_rows = cur.fetchall()
+                        #     customizations = ", ".join([f"{name}: {value}" for name, value in customization_rows]) if customization_rows else ""
+                        # except:
+                        #     customizations = ""
+
+                        # Insert into amplifier_builds for the chassis and electronics
+                        cur.execute("""
+                            INSERT INTO amplifier_builds (
+                                order_id, product_name, customer_name, po_number, voltage, status,
+                                builder_name, serial_number, notes, created_at, completed_at
+                            ) VALUES (%s, %s, %s, %s, %s, %s, '', '', %s, %s, '')
+                        """, (
+                            order_id, product_name, customer_name, po_number, voltage,
+                            'Pending', notes, set_date
+                        ))
+                        # Insert into cabinet_builds for headshells.
+                        cur.execute("""
+                            INSERT INTO cabinet_builds (
+                                order_id, product_name, customer_name, po_number, status, notes, created_at, completed_at
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, '')
+                        """, (order_id, product_name, customer_name, po_number, "Pending", notes, set_date))
                     messagebox.showinfo('Success','Saved Successfully.')
             conn.commit()
             treeview()
