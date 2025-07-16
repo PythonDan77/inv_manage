@@ -131,9 +131,9 @@ def ensure_tables_exist():
                     builder_name VARCHAR(100),     
                     serial_number VARCHAR(100),
                     notes TEXT,      
-                    created_at VARCHAR(25),      
+                    created_at VARCHAR(25),  
+                    build_start VARCHAR(25),    
                     completed_at VARCHAR(25),     
-
                     FOREIGN KEY (order_id) REFERENCES orders(id)
                 )"""
         )
@@ -146,7 +146,8 @@ def ensure_tables_exist():
                     po_number VARCHAR(50),
                     status VARCHAR(50),               
                     notes TEXT,       
-                    created_at VARCHAR(25),      
+                    created_at VARCHAR(25),
+                    build_start VARCHAR(25),      
                     completed_at VARCHAR(25),     
                     FOREIGN KEY (order_id) REFERENCES orders(id)
                 )"""

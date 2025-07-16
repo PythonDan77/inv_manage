@@ -28,7 +28,6 @@ def row_select_check(product_name, product_number, inventory_item_entry=None, it
     # Get the currently selected ID of the row.
     data = products_treeview.item(selected)
     id_num = data['values'][0]
-
     if update:
         add_update_item(product_name, product_number, True, id_num)
     elif delete:
@@ -50,7 +49,7 @@ def add_update_item(product_name, product_number, update=False, cur_id=None):
                     messagebox.showerror("Error", 'The product does not exist.')
                     return
                 current_db_data = current_db_data[1:]
-                
+
                 if current_db_data == (product_name, product_number):
                     messagebox.showinfo('No Changes','No Changes Detected.')
                     return

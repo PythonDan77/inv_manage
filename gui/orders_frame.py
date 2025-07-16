@@ -223,8 +223,8 @@ def add_update_item(customer_name, customer_type, po_num, product, product_type,
                         cur.execute("""
                             INSERT INTO amplifier_builds (
                                 order_id, product_name, customer_name, po_number, voltage, status,
-                                builder_name, serial_number, notes, created_at, completed_at
-                            ) VALUES (%s, %s, %s, %s, %s, %s, '', '', %s, %s, '')
+                                builder_name, serial_number, notes, created_at, build_start, completed_at
+                            ) VALUES (%s, %s, %s, %s, %s, %s, '', '', %s, %s, '', '')
                         """, (
                             order_id, product_name, customer_name, po_number, voltage,
                             'Pending', notes, set_date
@@ -232,8 +232,8 @@ def add_update_item(customer_name, customer_type, po_num, product, product_type,
                         # Insert into cabinet_builds for headshells.
                         cur.execute("""
                             INSERT INTO cabinet_builds (
-                                order_id, product_name, customer_name, po_number, status, notes, created_at, completed_at
-                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, '')
+                                order_id, product_name, customer_name, po_number, status, notes, created_at, build_start, completed_at
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, '', '')
                         """, (order_id, product_name, customer_name, po_number, "Pending", notes, set_date))
                     messagebox.showinfo('Success','Saved Successfully.')
             conn.commit()
@@ -434,6 +434,7 @@ def orders_frame(parent, user_info):
     # Create a dict for the product list and use the values for the drop down menu.
 
     try:
+        
         conn = get_conn()
         with conn.cursor() as cur:
             cur.execute("SELECT id, product_name, product_code FROM products")
