@@ -77,7 +77,8 @@ def ensure_tables_exist():
             """CREATE TABLE IF NOT EXISTS products (
                     id INT PRIMARY KEY AUTO_INCREMENT,
                     product_name VARCHAR(100),
-                    product_code VARCHAR(50)
+                    product_code VARCHAR(50),
+                    product_type VARCHAR(50)
                 )"""
         )
         cur.execute(
@@ -151,4 +152,25 @@ def ensure_tables_exist():
                     completed_at VARCHAR(25),     
                     FOREIGN KEY (order_id) REFERENCES orders(id)
                 )"""
+        )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS pedal_orders (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    order_id INT NOT NULL,
+                    product_id INT NOT NULL,
+                    quantity INT,
+                    status VARCHAR(50) DEFAULT 'Pending',
+                    notes TEXT,
+                    created_at VARCHAR(25),
+                    FOREIGN KEY (order_id) REFERENCES orders(id),
+                    FOREIGN KEY (product_id) REFERENCES products(id)
+                    )"""
+        )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS finished_pedals (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    product_id INT NOT NULL,
+                    finished_quantity INT DEFAULT 0,
+                    FOREIGN KEY (product_id) REFERENCES products(id)
+                    )"""
         )

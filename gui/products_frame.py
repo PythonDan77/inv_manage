@@ -18,7 +18,7 @@ def treeview():
             products_treeview.insert('', 'end', values=record)
 
 # Check to make sure a row is selected to either update or delete.
-def row_select_check(product_name, product_number, inventory_item_entry=None, item_qty_entry=None, add_bom_button=None, update=False, delete=False):
+def row_select_check(product_name, product_number, product_type, inventory_item_entry=None, item_qty_entry=None, add_bom_button=None, update=False, delete=False):
     
     selected = products_treeview.selection()
     if not selected:
@@ -29,15 +29,20 @@ def row_select_check(product_name, product_number, inventory_item_entry=None, it
     data = products_treeview.item(selected)
     id_num = data['values'][0]
     if update:
-        add_update_item(product_name, product_number, True, id_num)
+        add_update_item(product_name, product_number, product_type, True, id_num)
     elif delete:
-        delete_item(product_name, product_number, inventory_item_entry, item_qty_entry, add_bom_button, id_num)
+        delete_item(product_name, product_number, product_type, inventory_item_entry, item_qty_entry, add_bom_button, id_num)
 
  # Add and update products.
-def add_update_item(product_name, product_number, update=False, cur_id=None):
+def add_update_item(product_name, product_number, product_type, update=False, cur_id=None):
 
     product_name = product_name.strip()
     product_number = product_number.strip()
+    product_type = product_type.strip()
+    
+    if product_type == 'Select..':
+        messagebox.showerror("Error", 'Product Type must be selected.')
+        return
 
     try:
         conn = get_conn()
@@ -50,16 +55,18 @@ def add_update_item(product_name, product_number, update=False, cur_id=None):
                     return
                 current_db_data = current_db_data[1:]
 
-                if current_db_data == (product_name, product_number):
+                if current_db_data == (product_name, product_number, product_type):
                     messagebox.showinfo('No Changes','No Changes Detected.')
                     return
                 else:
                     cur.execute("""UPDATE products SET product_name=%s, 
-                                product_code=%s
+                                product_code=%s,
+                                product_type=%s
                                 WHERE id=%s""",
                                 
                                 (product_name,
                                 product_number,
+                                product_type,
                                 cur_id)
                                 )
 
@@ -77,8 +84,8 @@ def add_update_item(product_name, product_number, update=False, cur_id=None):
 
                 else:
                     cur.execute(
-                        """INSERT INTO products (product_name, product_code) VALUES (%s, %s)""",
-                        (product_name, product_number)
+                        """INSERT INTO products (product_name, product_code, product_type) VALUES (%s, %s, %s)""",
+                        (product_name, product_number, product_type)
                     )
                     messagebox.showinfo('Success','Saved Successfully.')
         conn.commit()
@@ -88,7 +95,7 @@ def add_update_item(product_name, product_number, update=False, cur_id=None):
         messagebox.showerror("Database Error", str(e))
 
 # Delete the selected row/item.
-def delete_item(product_name, product_number, inventory_item_entry, item_qty_entry, add_bom_button, id_num):
+def delete_item(product_name, product_number, product_type, inventory_item_entry, item_qty_entry, add_bom_button, id_num):
     result = messagebox.askyesno('Confirm', 'Do you want to delete this product and the BOM?')
     if result:
         try:
@@ -106,6 +113,7 @@ def delete_item(product_name, product_number, inventory_item_entry, item_qty_ent
             inventory_item_entry.delete(0, tk.END)
             add_bom_button.config(state='disabled')
             item_qty_entry.delete(0, tk.END)
+            product_type.set("Select..")
 
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
@@ -164,14 +172,23 @@ def products_frame(parent, user_info):
     detail_frame.place(x=0, y=275, relwidth=1)
 
     product_name_label = tk.Label(detail_frame, text='Product Name', font=('times new roman', 10, 'bold'), bg='white')
-    product_name_label.grid(row=0, column=0,padx=10, pady=20)
+    product_name_label.grid(row=0, column=0,padx=10, pady=(20,0))
     product_name_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow', width=30)
-    product_name_entry.grid(row=0, column=1, padx=10, pady=20 )
+    product_name_entry.grid(row=0, column=1, padx=10, pady=(20,0) )
 
     product_id_label = tk.Label(detail_frame, text='Product ID', font=('times new roman', 10, 'bold'), bg='white')
-    product_id_label.grid(row=1, column=0, padx=10, pady=20)
+    product_id_label.grid(row=1, column=0, padx=10, pady=(20,0))
     product_id_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow', width=30)
-    product_id_entry.grid(row=1, column=1, padx=10, pady=20)
+    product_id_entry.grid(row=1, column=1, padx=10, pady=(20,0))
+
+    item_category_label = tk.Label(detail_frame, text='Product Type', font=('times new roman', 10, 'bold'), bg='white')
+    item_category_label.grid(row=2, column=0, padx=10, pady=(20,0))
+    item_category_combobox = ttk.Combobox(detail_frame, width=17, values=('Amplifier','Pedal','Cabinet','Sub-Assembly'), 
+                                                 font=('times new roman', 12), 
+                                                 state='readonly'
+                                                 )
+    item_category_combobox.set('Select..')
+    item_category_combobox.grid(row=2, column=1, padx=10, pady=(20,0))
     
     #Bottom frame for the buttons.
     bottom_frame = tk.Frame(left_frame, width=450, height=150, bg='white')
@@ -187,7 +204,7 @@ def products_frame(parent, user_info):
                                          width= 8, 
                                          cursor='hand2',
                                          command=lambda: add_update_item(product_name_entry.get(), 
-                                                                  product_id_entry.get())
+                                                                  product_id_entry.get(),item_category_combobox.get())
                                                                   )
     add_button.grid(row=0, column=0, padx=(20,0), pady=20)
 
@@ -198,7 +215,7 @@ def products_frame(parent, user_info):
                                          width= 8, 
                                          cursor='hand2',
                                          command=lambda: row_select_check(product_name_entry.get(), 
-                                                                  product_id_entry.get(),
+                                                                  product_id_entry.get(),item_category_combobox.get(),
                                                                   update=True)
                                         )
     update_button.grid(row=0, column=1, padx=(20,0), pady=20)
@@ -211,6 +228,7 @@ def products_frame(parent, user_info):
                                          cursor='hand2',
                                          command=lambda: row_select_check(product_name_entry, 
                                                                   product_id_entry, 
+                                                                  item_category_combobox,
                                                                   inventory_item_entry, 
                                                                   item_qty_entry,
                                                                   add_bom_button,
@@ -616,6 +634,8 @@ def products_frame(parent, user_info):
         product_id_entry.delete(0, tk.END)
         product_name_entry.insert(0, row_data[1])
         product_id_entry.insert(0, row_data[2])
+        item_category_combobox.set(row_data[3])
+
 
         # Refresh BOM Treeview
         try:

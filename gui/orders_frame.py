@@ -41,6 +41,12 @@ def validate_form_inputs(customer_name, customer_type, po_num, product_id, produ
     if not voltage:
         messagebox.showerror('Empty Field', 'Voltage cannot be empty.')
         return None
+    
+    if product_type in ['Cabinet', 'Woodshop']:
+        voltage = '0'
+
+    if product_type == 'Pedal':
+        voltage = '9V DC'
 
     if not qty:
         messagebox.showerror('Empty Field', 'Qty cannot be empty.')
@@ -51,6 +57,9 @@ def validate_form_inputs(customer_name, customer_type, po_num, product_id, produ
     except ValueError:
         messagebox.showerror("Validation Error", "Quantity must be a number.")
         return None
+
+    if product_type in ['Amplifier', 'Cabinet']:
+        qty = 1
 
     if not po_num:
         po_num = "0"
@@ -235,6 +244,26 @@ def add_update_item(customer_name, customer_type, po_num, product, product_type,
                                 order_id, product_name, customer_name, po_number, status, notes, created_at, build_start, completed_at
                             ) VALUES (%s, %s, %s, %s, %s, %s, %s, '', '')
                         """, (order_id, product_name, customer_name, po_number, "Pending", notes, set_date))
+
+                    # Check if this order is for a pedal and add data to the pedal_orders table
+                    if validated_data[4].lower() == 'pedal':
+
+                        product_id = validated_data[3]
+                        cur.execute("SELECT product_name FROM products WHERE id = %s", (product_id,))
+                        quantity = validated_data[6]
+                        notes = validated_data[7]
+
+
+                        cur.execute("""
+                            INSERT INTO pedal_orders (
+                                order_id, product_id, quantity, status,
+                                notes, created_at
+                            ) VALUES (%s, %s, %s, %s, %s, %s)
+                        """, (
+                            order_id, product_id, quantity,
+                            'Pending', notes, set_date
+                        ))
+                    
                     messagebox.showinfo('Success','Saved Successfully.')
             conn.commit()
             treeview()

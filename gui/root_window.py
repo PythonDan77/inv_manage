@@ -7,6 +7,7 @@ from gui.products_frame import products_frame
 from gui.orders_frame import orders_frame
 from gui.amplifier_frame import amplifier_frame
 from gui.cabinet_frame import cabinet_frame
+from gui.pedal_frame import pedal_frame
 from gui.asset_path import asset_path
 import time
 
@@ -35,7 +36,7 @@ def create_main_window(user_info):
     root.config(bg='white')
 
     icon_png = tk.PhotoImage(file=asset_path("icon.png"))
-    checklist_png = tk.PhotoImage(file=asset_path("inventory2.png"))
+    checklist_png = tk.PhotoImage(file=asset_path("g3344.png"))
     boxes_png = tk.PhotoImage(file=asset_path("boxes.png"))
     ic_png = tk.PhotoImage(file=asset_path("ic.png"))
     cart_png = tk.PhotoImage(file=asset_path("cart.png"))
@@ -46,7 +47,7 @@ def create_main_window(user_info):
     products_png = tk.PhotoImage(file=asset_path("guitar-amplifier.png"))
     
     #Small png and title bar (bg='#010c48')
-    titleLabel = tk.Label(root, text='         Inventory Management', 
+    titleLabel = tk.Label(root, text='           Inventory Management', 
                                 font=('times new roman', 40, 'bold'), 
                                 bg='#0f4d7d', 
                                 fg='white', 
@@ -130,7 +131,13 @@ def create_main_window(user_info):
     amplifiers_button.pack(fill='x')
 
     #Assembly button with assy png(25 px)
-    pedals_button = tk.Button(leftFrame, text='Pedals', font=('times new roman', 16, 'bold'), image=assembly_png, compound='left', anchor='w')
+    pedals_button = tk.Button(leftFrame, text='Pedals', 
+                                         font=('times new roman', 16, 'bold'), 
+                                         image=assembly_png, 
+                                         compound='left', 
+                                         anchor='w',
+                                         command=lambda: forget_last(pedal_frame, root, user_info)
+                                         )
     pedals_button.image = assembly_png
     pedals_button.pack(fill='x')
 
@@ -144,14 +151,35 @@ def create_main_window(user_info):
     cabinets_button.image = assembly_png
     cabinets_button.pack(fill='x')
 
-    products_button = tk.Button(leftFrame, text='Assemblies', 
+    final_button = tk.Button(leftFrame, text='Final Assy', 
                                            font=('times new roman', 16, 'bold'), 
-                                           image=products_png, 
+                                           image=assembly_png, 
                                            compound='left', 
                                            anchor='w',
-                                           command= lambda: forget_last(products_frame, root, user_info))
-    products_button.image = products_png
-    products_button.pack(fill='x')
+                                        #    command=lambda: forget_last(cabinet_frame, root, user_info)
+                                        )
+    final_button.image = assembly_png
+    final_button.pack(fill='x')
+
+    shipping_button = tk.Button(leftFrame, text='Shipping', 
+                                           font=('times new roman', 16, 'bold'), 
+                                           image=assembly_png, 
+                                           compound='left', 
+                                           anchor='w',
+                                        #    command=lambda: forget_last(cabinet_frame, root, user_info)
+                                        )
+    shipping_button.image = assembly_png
+    shipping_button.pack(fill='x')
+    
+    if user_info['role'] in ['manager', 'admin']:
+        products_button = tk.Button(leftFrame, text='Assemblies', 
+                                            font=('times new roman', 16, 'bold'), 
+                                            image=products_png, 
+                                            compound='left', 
+                                            anchor='w',
+                                            command= lambda: forget_last(products_frame, root, user_info))
+        products_button.image = products_png
+        products_button.pack(fill='x')
 
     if user_info['role'] in ['manager', 'admin']:
         user_button = tk.Button(leftFrame, text='Users', 
