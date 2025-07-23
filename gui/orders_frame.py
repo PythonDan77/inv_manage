@@ -140,12 +140,6 @@ def add_update_item(customer_name, customer_type, po_num, product, product_type,
                     if not current_db_data:
                         messagebox.showerror("Error", 'The item does not exist.')
                         return
-
-                    # current_db_data = current_db_data[1:-3]
-                    # if current_db_data == validated_data:
-                    #     messagebox.showinfo('No Changes','No Changes Detected.')
-                    #     return
-                    # else:
                     
                     cur.execute("""UPDATE orders SET 
                                 customer_name=%s, 
@@ -211,57 +205,47 @@ def add_update_item(customer_name, customer_type, po_num, product, product_type,
                         # Unpack the necessary fields from validated_data or DB
                         
                         product_id = validated_data[3]
-                        cur.execute("SELECT product_name FROM products WHERE id = %s", (product_id,))
-                        product_name_row = cur.fetchone()
-                        product_name = product_name_row[0] if product_name_row else "" 
+                        # cur.execute("SELECT product_name FROM products WHERE id = %s", (product_id,))
+                        # product_name_row = cur.fetchone()
+                        # product_name = product_name_row[0] if product_name_row else "" 
 
-                        customer_name = validated_data[0]
-                        customer_type = validated_data[1]
-                        po_number = validated_data[2]
-                        voltage = validated_data[5]
+                        # customer_name = validated_data[0]
+                        # customer_type = validated_data[1]
+                        # po_number = validated_data[2]
+                        # voltage = validated_data[5]
                         notes = validated_data[7]
-
-                        # try:
-                        #     cur.execute("SELECT option_name, option_value FROM order_customizations WHERE order_id = %s", (order_id,))
-                        #     customization_rows = cur.fetchall()
-                        #     customizations = ", ".join([f"{name}: {value}" for name, value in customization_rows]) if customization_rows else ""
-                        # except:
-                        #     customizations = ""
 
                         # Insert into amplifier_builds for the chassis and electronics
                         cur.execute("""
                             INSERT INTO amplifier_builds (
-                                order_id, product_name, customer_name, po_number, voltage, status,
-                                builder_name, serial_number, notes, created_at, build_start, completed_at
-                            ) VALUES (%s, %s, %s, %s, %s, %s, '', '', %s, %s, '', '')
+                                order_id, product_id, status,
+                                builder_name, serial_number, notes, build_start, completed_at
+                            ) VALUES (%s, %s, %s, '', '', %s, '', '')
                         """, (
-                            order_id, product_name, customer_name, po_number, voltage,
-                            'Pending', notes, set_date
+                            order_id, product_id,
+                            'Pending', notes
                         ))
                         # Insert into cabinet_builds for headshells.
                         cur.execute("""
                             INSERT INTO cabinet_builds (
-                                order_id, product_name, customer_name, po_number, status, notes, created_at, build_start, completed_at
-                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, '', '')
-                        """, (order_id, product_name, customer_name, po_number, "Pending", notes, set_date))
+                                order_id, product_id, status, notes, build_start, completed_at
+                            ) VALUES (%s, %s, %s, %s, '', '')
+                        """, (order_id, product_id,"Pending", notes))
 
                     # Check if this order is for a pedal and add data to the pedal_orders table
                     if validated_data[4].lower() == 'pedal':
 
                         product_id = validated_data[3]
-                        cur.execute("SELECT product_name FROM products WHERE id = %s", (product_id,))
+                        # cur.execute("SELECT product_name FROM products WHERE id = %s", (product_id,))
                         quantity = validated_data[6]
-                        notes = validated_data[7]
-
+                        # notes = validated_data[7]
 
                         cur.execute("""
                             INSERT INTO pedal_orders (
-                                order_id, product_id, quantity, status,
-                                notes, created_at
-                            ) VALUES (%s, %s, %s, %s, %s, %s)
+                                order_id, product_id
+                            ) VALUES (%s, %s)
                         """, (
-                            order_id, product_id, quantity,
-                            'Pending', notes, set_date
+                            order_id, product_id
                         ))
                     
                     messagebox.showinfo('Success','Saved Successfully.')
@@ -506,7 +490,7 @@ def orders_frame(parent, user_info):
     notes_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
     notes_entry.grid(row=2, column=1, padx=10, pady=20)
 
-    voltage_label = tk.Label(detail_frame, text='Voltage (if appl)', font=('times new roman', 10, 'bold'), bg='white')
+    voltage_label = tk.Label(detail_frame, text='Voltage', font=('times new roman', 10, 'bold'), bg='white')
     voltage_label.grid(row=2, column=2, padx=10, pady=20)
     voltage_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
     voltage_entry.grid(row=2, column=3, padx=10, pady=20)

@@ -8,7 +8,25 @@ from tkinter import messagebox
 def treeview():
     conn = get_conn()
     with conn.cursor() as cur:
-        cur.execute('SELECT * FROM cabinet_builds')
+        cur.execute("""
+            SELECT 
+                cb.id,
+                cb.order_id,
+                p.product_name,
+                o.customer_name,
+                o.po_number,
+                cb.status,
+                cb.notes,
+                o.created_at,
+                cb.build_start,
+                cb.completed_at
+            FROM 
+                cabinet_builds cb
+            JOIN 
+                products p ON cb.product_id = p.id
+            JOIN 
+                orders o ON cb.order_id = o.id
+        """)
         all_records = cur.fetchall()
         cab_treeview.delete(*cab_treeview.get_children())
         for record in all_records:
@@ -161,22 +179,57 @@ def row_select_check(start=False, update=False, complete=False, delete=False):
 # Function verifies data has been used to search the database and then retrieves the data.
 def search_item(search_option, value):
     if search_option == 'Select..':
-        messagebox.showerror('Error','Select an option.')
-    elif not value:
-        messagebox.showerror('Error','Enter a value to search.')
-    else:
-        try:
-            search_option = search_option.replace(' ', '_')
-            conn = get_conn()
-            with conn.cursor() as cur:
-                cur.execute(f'SELECT * FROM cabinet_builds WHERE {search_option} LIKE %s', f'%{value}%')
-                result = cur.fetchall()
-                cab_treeview.delete(*cab_treeview.get_children())
-                for record in result:
-                    cab_treeview.insert('', 'end', values=record)
+        messagebox.showerror('Error', 'Select an option.')
+        return
+    if not value:
+        messagebox.showerror('Error', 'Enter a value to search.')
+        return
 
-        except Exception as e:
-            messagebox.showerror("Database Error", str(e))
+    # Map user-friendly search options to actual SQL fields
+    field_map = {
+        'ID': 'cb.id',
+        'Customer Name': 'o.customer_name',
+        'PO Number': 'o.po_number'
+    }
+
+    if search_option not in field_map:
+        messagebox.showerror('Error', 'Invalid search option.')
+        return
+
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            sql = f"""
+                SELECT 
+                    cb.id,
+                    cb.order_id,
+                    p.product_name,
+                    o.customer_name,
+                    o.po_number,
+                    cb.status,
+                    cb.notes,
+                    o.created_at,
+                    cb.build_start,
+                    cb.completed_at
+                FROM 
+                    cabinet_builds cb
+                JOIN 
+                    products p ON cb.product_id = p.id
+                JOIN 
+                    orders o ON cb.order_id = o.id
+                WHERE 
+                    {field_map[search_option]} LIKE %s
+            """
+            search_term = f"%{value}%" if search_option != "ID" else value
+            cur.execute(sql, (search_term,))
+            result = cur.fetchall()
+
+            cab_treeview.delete(*cab_treeview.get_children())
+            for record in result:
+                cab_treeview.insert('', 'end', values=record)
+
+    except Exception as e:
+        messagebox.showerror("Database Error", str(e))
 
 # Reloads all data and resets the search options.
 def search_all(search_entry, search_combobox):
@@ -216,7 +269,7 @@ def cabinet_frame(parent, user_info):
     search_frame = tk.Frame(top_frame, bg='white')
     search_frame.pack()
     #Drop Down Menu
-    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Customer name', 'PO number'), 
+    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Customer Name', 'PO Number'), 
                                                  font=('times new roman', 12), 
                                                  state='readonly'
                                                  )

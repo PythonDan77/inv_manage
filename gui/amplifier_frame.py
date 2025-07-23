@@ -9,7 +9,29 @@ from tkinter import messagebox
 def treeview():
     conn = get_conn()
     with conn.cursor() as cur:
-        cur.execute('SELECT * FROM amplifier_builds')
+        # cur.execute('SELECT * FROM amplifier_builds')
+        cur.execute("""
+            SELECT 
+                ab.id,
+                ab.order_id,
+                p.product_name,
+                o.customer_name,
+                o.po_number,
+                o.voltage,
+                ab.status,
+                ab.builder_name,
+                ab.serial_number,
+                ab.notes,
+                o.created_at,
+                ab.build_start,
+                ab.completed_at
+            FROM 
+                amplifier_builds ab
+            JOIN 
+                products p ON ab.product_id = p.id
+            JOIN 
+                orders o ON ab.order_id = o.id
+        """)
         all_records = cur.fetchall()
         amp_treeview.delete(*amp_treeview.get_children())
         for record in all_records:
@@ -161,22 +183,60 @@ def row_select_check(user_info, start=False, update=False, complete=False, delet
 # Function verifies data has been used to search the database and then retrieves the data.
 def search_item(search_option, value):
     if search_option == 'Select..':
-        messagebox.showerror('Error','Select an option.')
-    elif not value:
-        messagebox.showerror('Error','Enter a value to search.')
-    else:
-        try:
-            search_option = search_option.replace(' ', '_')
-            conn = get_conn()
-            with conn.cursor() as cur:
-                cur.execute(f'SELECT * FROM amplifier_builds WHERE {search_option} LIKE %s', f'%{value}%')
-                result = cur.fetchall()
-                amp_treeview.delete(*amp_treeview.get_children())
-                for record in result:
-                    amp_treeview.insert('', 'end', values=record)
+        messagebox.showerror('Error', 'Select an option.')
+        return
+    if not value:
+        messagebox.showerror('Error', 'Enter a value to search.')
+        return
 
-        except Exception as e:
-            messagebox.showerror("Database Error", str(e))
+    # Map dropdown to actual database fields
+    field_map = {
+        'ID': 'ab.id',
+        'Customer Name': 'o.customer_name',
+        'PO Number': 'o.po_number'
+    }
+
+    if search_option not in field_map:
+        messagebox.showerror('Error', 'Invalid search option.')
+        return
+
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            sql = f"""
+                SELECT 
+                    ab.id,
+                    ab.order_id,
+                    p.product_name,
+                    o.customer_name,
+                    o.po_number,
+                    o.voltage,
+                    ab.status,
+                    ab.builder_name,
+                    ab.serial_number,
+                    ab.notes,
+                    o.created_at,
+                    ab.build_start,
+                    ab.completed_at
+                FROM 
+                    amplifier_builds ab
+                JOIN 
+                    products p ON ab.product_id = p.id
+                JOIN 
+                    orders o ON ab.order_id = o.id
+                WHERE 
+                    {field_map[search_option]} LIKE %s
+            """
+            search_term = f"%{value}%" if search_option != "ID" else value
+            cur.execute(sql, (search_term,))
+            result = cur.fetchall()
+
+            amp_treeview.delete(*amp_treeview.get_children())
+            for record in result:
+                amp_treeview.insert('', 'end', values=record)
+
+    except Exception as e:
+        messagebox.showerror("Database Error", str(e))
 
 # Reloads all data and resets the search options.
 def search_all(search_entry, search_combobox):
@@ -217,7 +277,7 @@ def amplifier_frame(parent, user_info):
     search_frame = tk.Frame(top_frame, bg='white')
     search_frame.pack()
     #Drop Down Menu
-    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Customer name', 'PO number'), 
+    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Customer Name', 'PO Number'), 
                                                  font=('times new roman', 12), 
                                                  state='readonly'
                                                  )

@@ -17,10 +17,10 @@ def ped_treeview():
                 p.product_name,
                 o.customer_name,
                 o.po_number,
-                po.quantity,
-                po.status,
-                po.notes,
-                po.created_at
+                o.quantity,
+                o.status,
+                o.notes,
+                o.created_at
             FROM 
                 pedal_orders po
             JOIN 
@@ -43,6 +43,39 @@ def sto_treeview():
         stock_treeview.delete(*stock_treeview.get_children())
         for record in all_records:
             stock_treeview.insert('', 'end', values=record)
+
+# Delete the selected row/item.
+def delete_item(cur_id):
+
+    result = messagebox.askyesno('Confirm', 'Do you want to delete this order?'
+                                 ' The order will need to be re-entered to have it appear here again.')
+    if result:
+        try:
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM pedal_orders WHERE id = %s", (cur_id,))
+                
+            conn.commit()
+            ped_treeview()
+            messagebox.showinfo('Success','Deleted Successfully.')
+
+        except Exception as e:
+            messagebox.showerror("Database Error", str(e))
+
+# Check to make sure a row is selected to either update or delete.
+def row_select_check(user_info, delete=False):
+    
+    selected = pedal_treeview.selection()
+    if not selected:
+        messagebox.showerror('Error','You must select a row.')
+        return
+
+    # Get the currently selected ID of the row.
+    data = pedal_treeview.item(selected)
+    id_num = data['values'][0]
+    
+    if delete:
+        delete_item(id_num)
 
 
 def pedal_frame(parent, user_info):
@@ -203,7 +236,15 @@ def pedal_frame(parent, user_info):
                                                                   item_category_combobox.get(),
                                                                   update=True)
                                                                   )
-    update_button.grid(row=0, column=1, padx=20)
+
+    delete_button = tk.Button(button_frame, text='Delete', 
+                                           font=('times new roman', 12), 
+                                           bg='#0f4d7d', 
+                                           fg='white', 
+                                           width= 10, 
+                                           cursor='hand2', 
+                                           command=lambda: row_select_check(user_info, delete=True)  
+                                        )
 
     l_right_frame = tk.Frame(pedal_frame, width=300, height=300, bg='white')
     l_right_frame.place(x=700, y=370)
@@ -227,5 +268,10 @@ def pedal_frame(parent, user_info):
     #call treeview function to display the items.
     ped_treeview()
     sto_treeview()
+
+    #Disable certain buttons if user permissions are not adequate
+    if user_info['role'] in ['manager', 'admin']:
+        update_button.grid(row=0, column=1, padx=20)
+        delete_button.grid(row=0, column=2, padx=20)
 
     return pedal_frame
