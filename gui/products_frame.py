@@ -39,7 +39,7 @@ def add_update_item(product_name, product_number, product_type, update=False, cu
     product_name = product_name.strip()
     product_number = product_number.strip()
     product_type = product_type.strip()
-    
+
     if product_type == 'Select..':
         messagebox.showerror("Error", 'Product Type must be selected.')
         return
@@ -87,6 +87,19 @@ def add_update_item(product_name, product_number, product_type, update=False, cu
                         """INSERT INTO products (product_name, product_code, product_type) VALUES (%s, %s, %s)""",
                         (product_name, product_number, product_type)
                     )
+
+                    # If product type is "Pedal", insert a row into finished_pedals
+                    if product_type.lower() == "pedal":
+                        # Get the last inserted product ID
+                        cur.execute("SELECT LAST_INSERT_ID()")
+                        product_id = cur.fetchone()[0]
+
+                        cur.execute(
+                            """INSERT INTO finished_pedals (product_id, finished_quantity)
+                            VALUES (%s, %s)
+                            """, (product_id, 0)
+                        )
+
                     messagebox.showinfo('Success','Saved Successfully.')
         conn.commit()
         treeview()
@@ -105,6 +118,11 @@ def delete_item(product_name, product_number, product_type, inventory_item_entry
                 cur.execute('DELETE FROM bill_of_materials WHERE product_id=%s', (id_num,))
                 # Then delete the product
                 cur.execute('DELETE FROM products WHERE id=%s', (id_num,))
+
+                # If it is a pedal, delete the finished_pedals table entry
+                if product_type.get() == 'Pedal':
+                    cur.execute('DELETE FROM finished_pedals WHERE product_id=%s', (id_num,))
+
             conn.commit()
             treeview()
             messagebox.showinfo('Success','Deleted Successfully.')
@@ -117,7 +135,6 @@ def delete_item(product_name, product_number, product_type, inventory_item_entry
 
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
-
 
 def products_frame(parent, user_info):
     global products_treeview
@@ -206,7 +223,6 @@ def products_frame(parent, user_info):
                                          command=lambda: add_update_item(product_name_entry.get(), 
                                                                   product_id_entry.get(),item_category_combobox.get())
                                                                   )
-    add_button.grid(row=0, column=0, padx=(20,0), pady=20)
 
     update_button = tk.Button(button_frame, text='Update', 
                                          font=('times new roman', 12), 
@@ -218,7 +234,6 @@ def products_frame(parent, user_info):
                                                                   product_id_entry.get(),item_category_combobox.get(),
                                                                   update=True)
                                         )
-    update_button.grid(row=0, column=1, padx=(20,0), pady=20)
 
     delete_button = tk.Button(button_frame, text='Delete', 
                                          font=('times new roman', 12), 
@@ -235,7 +250,6 @@ def products_frame(parent, user_info):
                                                                   delete=True)
                                          )
                                         
-    delete_button.grid(row=0, column=2, padx=(20,0), pady=20)
 
     #Right frame code
     right_frame = tk.Frame(products_frame, width=560, height=800, bg='white')
@@ -261,7 +275,6 @@ def products_frame(parent, user_info):
                                          command=lambda: open_part_search_popup()
                                          )
                                         
-    item_search_button.grid(row=0, column=2, padx=10, pady=(10,0))
 
     item_qty_label = tk.Label(right_detail_frame, text='Qty Used', font=('times new roman', 10, 'bold'), bg='white')
     item_qty_label.grid(row=1, column=0, padx=10, pady=20)
@@ -278,7 +291,6 @@ def products_frame(parent, user_info):
                                          command=lambda: add_bom_item()
                                          )
                                         
-    add_bom_button.grid(row=1, column=2, padx=10, pady=20)
 
     #Search Frame
     search_frame = tk.Frame(right_frame, bg='white')
@@ -403,7 +415,7 @@ def products_frame(parent, user_info):
         tk.Button(popup, text="Save", command=save_qty).pack(side=tk.LEFT, padx=10, pady=10)
         tk.Button(popup, text="Cancel", command=popup.destroy).pack(side=tk.RIGHT, padx=10, pady=10)
 
-    update_button = tk.Button(button_frame, text='Update', 
+    update_button_2 = tk.Button(button_frame, text='Update', 
                                          font=('times new roman', 12), 
                                          bg='#0f4d7d', 
                                          fg='white', 
@@ -411,7 +423,6 @@ def products_frame(parent, user_info):
                                          cursor='hand2',
                                          command= lambda: update_bom_quantity()
                                         )
-    update_button.grid(row=0, column=1, padx=(10,0), pady=20)
     
     #Function used to remove an item from the bom table.
     def delete_bom_item():
@@ -445,7 +456,7 @@ def products_frame(parent, user_info):
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
-    delete_button = tk.Button(button_frame, text='Delete', 
+    delete_button_2 = tk.Button(button_frame, text='Delete', 
                                          font=('times new roman', 12), 
                                          bg='#0f4d7d', 
                                          fg='white', 
@@ -454,7 +465,6 @@ def products_frame(parent, user_info):
                                          command= lambda: delete_bom_item()
                                          )
                                         
-    delete_button.grid(row=0, column=2, padx=(20,0), pady=20)
 
     def refresh_bom_treeview(product_id):
         global bom_data
@@ -643,6 +653,15 @@ def products_frame(parent, user_info):
             refresh_bom_treeview(product_id)
         except ValueError:
             messagebox.showerror("Invalid Data", "Product ID is not an integer.")
+
+    if user_info['role'] in ['admin']:
+        add_button.grid(row=0, column=0, padx=(20,0), pady=20)
+        update_button.grid(row=0, column=1, padx=(20,0), pady=20)
+        delete_button.grid(row=0, column=2, padx=(20,0), pady=20)
+        item_search_button.grid(row=0, column=2, padx=10, pady=(10,0))
+        add_bom_button.grid(row=1, column=2, padx=10, pady=20)
+        update_button_2.grid(row=0, column=1, padx=(10,0), pady=20)
+        delete_button_2.grid(row=0, column=2, padx=(20,0), pady=20)
 
     products_treeview.bind("<<TreeviewSelect>>", on_tree_select)
 

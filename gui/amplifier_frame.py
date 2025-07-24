@@ -9,7 +9,6 @@ from tkinter import messagebox
 def treeview():
     conn = get_conn()
     with conn.cursor() as cur:
-        # cur.execute('SELECT * FROM amplifier_builds')
         cur.execute("""
             SELECT 
                 ab.id,
@@ -24,7 +23,8 @@ def treeview():
                 ab.notes,
                 o.created_at,
                 ab.build_start,
-                ab.completed_at
+                ab.completed_at,
+                ab.playtester
             FROM 
                 amplifier_builds ab
             JOIN 
@@ -89,16 +89,16 @@ def start_item(cur_id, user_info):
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
 
-def complete_item(cur_id):
-    result = messagebox.askyesno('Confirm', 'Mark complete? This cannot be undone')
+def complete_item(cur_id, user_info):
+    result = messagebox.askyesno('Confirm', 'Amplifier has passed play testing? You will be recorded as tester. This cannot be undone')
     if result:
         try:
             set_date = datetime.today().strftime('%Y-%m-%d')
             conn = get_conn()
             with conn.cursor() as cur:
                 cur.execute("""UPDATE amplifier_builds SET status=%s, 
-                                    completed_at=%s WHERE id=%s""",
-                                    ("Completed", set_date,
+                                    completed_at=%s, playtester=%s WHERE id=%s""",
+                                    ("Completed", set_date, user_info['full_name'],
                                     cur_id)
                                     )
             conn.commit()
@@ -166,15 +166,18 @@ def row_select_check(user_info, start=False, update=False, complete=False, delet
             messagebox.showerror('Error','This build has already started or is completed.')
     elif update:
         if data['values'][7]:
-            update_item(id_num)
+            if status != 'Completed':
+                update_item(id_num)
+            else:
+                messagebox.showerror('Error','This build is completed and cannot be changed.')
         else:
             messagebox.showerror('Error','A build must be claimed by a builder to update fields.')
     elif complete:
         if serial_number_entry.get():
-            if status == "In Progress":
-                complete_item(id_num)
+            if status == "Needs Playtest":
+                complete_item(id_num, user_info)
             else:
-                messagebox.showerror('Error','This build hasn\'t started, needs repair, or is completed. Must be marked "In Progress" to complete.')
+                messagebox.showerror('Error','This build hasn\'t started, needs repair, or is completed. Must be marked "Needs Playtest" to complete.')
         else:
              messagebox.showerror('Error','A build cannot be marked "Completed" without a Serial Number.')
     elif delete:
@@ -218,6 +221,7 @@ def search_item(search_option, value):
                     o.created_at,
                     ab.build_start,
                     ab.completed_at
+                    ab.playtester
                 FROM 
                     amplifier_builds ab
                 JOIN 
@@ -242,7 +246,7 @@ def search_item(search_option, value):
 def search_all(search_entry, search_combobox):
     treeview()
     search_entry.delete(0,'end')
-    search_combobox.set('Select...')
+    search_combobox.set('Select..')
 
 # Clear the highlight from the combobox. Trigger in the main function at the bottom.
 def on_select(event, combobox):
@@ -311,7 +315,7 @@ def amplifier_frame(parent, user_info):
     
     amp_treeview = ttk.Treeview(top_frame, columns=('id','order_id', 'product_name', 'customer_name', 'po_number', 'voltage',
                                                         'status', 'builder_name', 'serial_number', 'notes', 'created_at', 'build_start',
-                                                     'completed_at'), 
+                                                     'completed_at', 'playtester'), 
                                            show='headings',
                                            yscrollcommand=vertical_scrollbar.set,
                                            xscrollcommand=horizontal_scrollbar.set)
@@ -334,6 +338,7 @@ def amplifier_frame(parent, user_info):
     amp_treeview.heading('created_at', text='Order date')
     amp_treeview.heading('build_start', text='Start date')
     amp_treeview.heading('completed_at', text='Completion date')
+    amp_treeview.heading('playtester', text='Play Tester')
     
     amp_treeview.column('id', width=80)
     amp_treeview.column('order_id', width=80)
@@ -348,6 +353,7 @@ def amplifier_frame(parent, user_info):
     amp_treeview.column('created_at', width=150)
     amp_treeview.column('build_start', width=150)
     amp_treeview.column('completed_at', width=150)
+    amp_treeview.column('playtester', width=175)
 
     #call treeview function to display the items.
     treeview()
@@ -358,7 +364,7 @@ def amplifier_frame(parent, user_info):
 
     status_label = tk.Label(detail_frame, text='Status', font=('times new roman', 10, 'bold'), bg='white')
     status_label.grid(row=0, column=0, padx=20, pady=(20,0))
-    status_combobox = ttk.Combobox(detail_frame, width=17, values=('In Progress','Needs Repair'),
+    status_combobox = ttk.Combobox(detail_frame, width=17, values=('Needs Playtest','Needs Repair'),
                                                  font=('times new roman', 12), 
                                                  state='readonly'
                                                  )
@@ -418,15 +424,15 @@ def amplifier_frame(parent, user_info):
     completed_button.grid(row=0, column=2, padx=20)
     
     
-    history_button = tk.Button(button_frame, text='History', 
-                                           font=('times new roman', 12), 
-                                           bg='#0f4d7d', 
-                                           fg='white', 
-                                           width= 10, 
-                                           cursor='hand2', 
-                                        #    command=lambda:  
-                                        )
-    history_button.grid(row=0, column=3, padx=20)
+    # history_button = tk.Button(button_frame, text='History', 
+    #                                        font=('times new roman', 12), 
+    #                                        bg='#0f4d7d', 
+    #                                        fg='white', 
+    #                                        width= 10, 
+    #                                        cursor='hand2', 
+    #                                     #    command=lambda:  
+    #                                     )
+    # history_button.grid(row=0, column=3, padx=20)
 
     delete_button = tk.Button(button_frame, text='Delete', 
                                            font=('times new roman', 12), 
@@ -458,7 +464,7 @@ def amplifier_frame(parent, user_info):
 
     #Disable certain buttons if user permissions are not adequate
     if user_info['role'] in ['manager', 'admin']:
-        delete_button.grid(row=0, column=4, padx=20)
+        delete_button.grid(row=0, column=3, padx=20)
 
     search_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, search_combobox))
     status_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, status_combobox))

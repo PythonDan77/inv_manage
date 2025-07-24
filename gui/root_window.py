@@ -8,7 +8,9 @@ from gui.orders_frame import orders_frame
 from gui.amplifier_frame import amplifier_frame
 from gui.cabinet_frame import cabinet_frame
 from gui.pedal_frame import pedal_frame
+from gui.final_assembly import final_assy_frame
 from gui.asset_path import asset_path
+from db.sync_tables import sync_inventory_status, sync_final_assembly
 import time
 
 current_frame = None
@@ -25,6 +27,9 @@ def forget_last(func, root, user_info):
     if current_frame:
         current_frame.place_forget()
     current_frame = func(root, user_info)
+    # Refresh the auto fill functions in sync tables (db section)
+    sync_inventory_status()
+    sync_final_assembly()
 
 def create_main_window(user_info):
     global subtitleLabel
@@ -156,19 +161,19 @@ def create_main_window(user_info):
                                            image=assembly_png, 
                                            compound='left', 
                                            anchor='w',
-                                        #    command=lambda: forget_last(cabinet_frame, root, user_info)
+                                           command=lambda: forget_last(final_assy_frame, root, user_info)
                                         )
     final_button.image = assembly_png
     final_button.pack(fill='x')
 
     shipping_button = tk.Button(leftFrame, text='Shipping', 
                                            font=('times new roman', 16, 'bold'), 
-                                           image=assembly_png, 
+                                           image=truck_png, 
                                            compound='left', 
                                            anchor='w',
                                         #    command=lambda: forget_last(cabinet_frame, root, user_info)
                                         )
-    shipping_button.image = assembly_png
+    shipping_button.image = truck_png
     shipping_button.pack(fill='x')
     
     if user_info['role'] in ['manager', 'admin']:
@@ -181,7 +186,7 @@ def create_main_window(user_info):
         products_button.image = products_png
         products_button.pack(fill='x')
 
-    if user_info['role'] in ['manager', 'admin']:
+    if user_info['role'] in ['admin']:
         user_button = tk.Button(leftFrame, text='Users', 
                                         font=('times new roman', 16, 'bold'), 
                                         image=user_png, 

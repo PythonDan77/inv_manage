@@ -36,7 +36,7 @@ def ped_treeview():
 def sto_treeview():
     conn = get_conn()
     with conn.cursor() as cur:
-        cur.execute("""SELECT f.id, p.product_name, f.finished_quantity
+        cur.execute("""SELECT p.product_name, f.finished_quantity
                         FROM finished_pedals f
                         JOIN products p ON f.product_id = p.id""")
         all_records = cur.fetchall()
@@ -77,6 +77,159 @@ def row_select_check(user_info, delete=False):
     if delete:
         delete_item(id_num)
 
+def add_finished_quantity(status_combobox, qty_entry):
+    selected_label = status_combobox.get()
+    quantity_str = qty_entry.get()
+
+    if not selected_label:
+        messagebox.showerror("Input Error", "Please select a pedal.")
+        return
+
+    if not quantity_str.isdigit():
+        messagebox.showerror("Input Error", "Please enter a valid quantity.")
+        return
+
+    quantity = int(quantity_str)
+    product_id = product_dict.get(selected_label)
+
+    if product_id is None:
+        messagebox.showerror("Error", "Selected product not found.")
+        return
+
+    confirm = messagebox.askyesno("Confirm Quantity", f"Add {quantity} tested/etched and boxed {selected_label}?")
+    if not confirm:
+        return
+
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            # Update finished quantity by adding the new amount
+            cur.execute("""
+                UPDATE finished_pedals
+                SET finished_quantity = finished_quantity + %s
+                WHERE product_id = %s
+            """, (quantity, product_id))
+            conn.commit()
+
+        messagebox.showinfo("Success", f"Added {quantity} to finished quantity for {selected_label}.")
+
+        # Optionally reset fields
+        qty_entry.delete(0, tk.END)
+        status_combobox.set("Select..")
+        sto_treeview()
+
+    except Exception as e:
+        messagebox.showerror("Database Error", str(e))
+
+
+def set_finished_quantity(status_combobox, qty_entry):
+    selected_label = status_combobox.get()
+    quantity_str = qty_entry.get()
+
+    if not selected_label:
+        messagebox.showerror("Input Error", "Please select a pedal.")
+        return
+
+    if not quantity_str.isdigit():
+        messagebox.showerror("Input Error", "Please enter a valid quantity.")
+        return
+
+    quantity = int(quantity_str)
+    product_id = product_dict.get(selected_label)
+
+    if product_id is None:
+        messagebox.showerror("Error", "Selected product not found.")
+        return
+
+    # Optional: Confirm before overwriting
+    confirm = messagebox.askyesno("Confirm Overwrite", f"Set quantity for {selected_label} to {quantity}?")
+    if not confirm:
+        return
+
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            # Overwrite the finished quantity
+            cur.execute("""
+                UPDATE finished_pedals
+                SET finished_quantity = %s
+                WHERE product_id = %s
+            """, (quantity, product_id))
+            conn.commit()
+
+        messagebox.showinfo("Success", f"{selected_label} finished quantity set to {quantity}.")
+
+        # Optionally reset fields
+        qty_entry.delete(0, tk.END)
+        status_combobox.set("Select..")
+        sto_treeview()
+
+    except Exception as e:
+        messagebox.showerror("Database Error", str(e))
+
+# Function verifies data has been used to search the database and then retrieves the data.
+def search_item(search_option, value):
+    if search_option == 'Select..':
+        messagebox.showerror('Error', 'Select an option.')
+        return
+    if not value:
+        messagebox.showerror('Error', 'Enter a value to search.')
+        return
+
+    # Map user-friendly search options to actual SQL fields
+    field_map = {
+        'ID': 'po.id',
+        'Customer Name': 'o.customer_name',
+        'PO Number': 'o.po_number'
+    }
+
+    if search_option not in field_map:
+        messagebox.showerror('Error', 'Invalid search option.')
+        return
+
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            sql = f"""
+                    SELECT 
+                    po.id,
+                    po.order_id,
+                    p.product_name,
+                    o.customer_name,
+                    o.po_number,
+                    o.quantity,
+                    o.status,
+                    o.notes,
+                    o.created_at
+                FROM 
+                    pedal_orders po
+                JOIN 
+                    products p ON po.product_id = p.id
+                JOIN 
+                    orders o ON po.order_id = o.id
+                WHERE 
+                    {field_map[search_option]} LIKE %s
+            """
+            search_term = f"%{value}%" if search_option != "ID" else value
+            cur.execute(sql, (search_term,))
+            result = cur.fetchall()
+
+            pedal_treeview.delete(*pedal_treeview.get_children())
+            for record in result:
+                pedal_treeview.insert('', 'end', values=record)
+
+    except Exception as e:
+        messagebox.showerror("Database Error", str(e))
+
+# Reloads all data and resets the search options.
+def search_all(search_entry, search_combobox):
+    ped_treeview()
+    search_entry.delete(0,'end')
+    search_combobox.set('Select..')
+
+# Clear the highlight from the combobox. Trigger in the main function at the bottom.
+def on_select(event, combobox):
+    combobox.selection_clear()
 
 def pedal_frame(parent, user_info):
     global pedal_treeview
@@ -105,7 +258,7 @@ def pedal_frame(parent, user_info):
     search_frame = tk.Frame(top_frame, bg='white')
     search_frame.pack()
     #Drop Down Menu
-    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Customer name', 'PO number'), 
+    search_combobox = ttk.Combobox(search_frame, values=('ID', 'Customer Name', 'PO Number'), 
                                                  font=('times new roman', 12), 
                                                  state='readonly'
                                                  )
@@ -207,15 +360,7 @@ def pedal_frame(parent, user_info):
                                          fg='white', 
                                          width= 10, 
                                          cursor='hand2', 
-                                         command=lambda: add_update_item(part_name_entry.get(), 
-                                                                  part_num_entry.get(), 
-                                                                  qty_entry.get(), 
-                                                                  loc_entry.get(), 
-                                                                  sup_entry.get(), 
-                                                                  low_entry.get(),
-                                                                  restock_qty_entry.get(),
-                                                                  item_type_combobox.get(),
-                                                                  item_category_combobox.get())
+                                         command=lambda: add_finished_quantity(status_combobox, qty_completed_entry)
                                                                   )
     add_button.grid(row=0, column=0, padx=20)
 
@@ -225,16 +370,7 @@ def pedal_frame(parent, user_info):
                                             fg='white', 
                                             width= 10, 
                                             cursor='hand2', 
-                                            command=lambda: row_select_check(part_name_entry.get(), 
-                                                                  part_num_entry.get(), 
-                                                                  qty_entry.get(), 
-                                                                  loc_entry.get(), 
-                                                                  sup_entry.get(),
-                                                                  low_entry.get(),
-                                                                  restock_qty_entry.get(),
-                                                                  item_type_combobox.get(),
-                                                                  item_category_combobox.get(),
-                                                                  update=True)
+                                            command=lambda: set_finished_quantity(status_combobox, qty_completed_entry)
                                                                   )
 
     delete_button = tk.Button(button_frame, text='Delete', 
@@ -273,5 +409,8 @@ def pedal_frame(parent, user_info):
     if user_info['role'] in ['manager', 'admin']:
         update_button.grid(row=0, column=1, padx=20)
         delete_button.grid(row=0, column=2, padx=20)
+    
+    search_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, search_combobox))
+    status_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, status_combobox))
 
     return pedal_frame

@@ -243,7 +243,7 @@ def search_item(search_option, value):
 def search_all(search_entry, search_combobox):
     treeview()
     search_entry.delete(0,'end')
-    search_combobox.set('Select...')
+    search_combobox.set('Select..')
 
 # Clear the highlight from the combobox. Trigger in the main function at the bottom.
 def on_select(event, combobox):

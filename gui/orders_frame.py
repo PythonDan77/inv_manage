@@ -202,25 +202,17 @@ def add_update_item(customer_name, customer_type, po_num, product, product_type,
 
                     # Check if this order is for an amplifier and add data to the amplifier_builds table
                     if validated_data[4].lower() == 'amplifier':
-                        # Unpack the necessary fields from validated_data or DB
-                        
-                        product_id = validated_data[3]
-                        # cur.execute("SELECT product_name FROM products WHERE id = %s", (product_id,))
-                        # product_name_row = cur.fetchone()
-                        # product_name = product_name_row[0] if product_name_row else "" 
 
-                        # customer_name = validated_data[0]
-                        # customer_type = validated_data[1]
-                        # po_number = validated_data[2]
-                        # voltage = validated_data[5]
+                        # Unpack the necessary fields from validated_data or DB   
+                        product_id = validated_data[3]
                         notes = validated_data[7]
 
                         # Insert into amplifier_builds for the chassis and electronics
                         cur.execute("""
                             INSERT INTO amplifier_builds (
                                 order_id, product_id, status,
-                                builder_name, serial_number, notes, build_start, completed_at
-                            ) VALUES (%s, %s, %s, '', '', %s, '', '')
+                                builder_name, serial_number, notes, build_start, completed_at, playtester
+                            ) VALUES (%s, %s, %s, '', '', %s, '', '', '')
                         """, (
                             order_id, product_id,
                             'Pending', notes
@@ -318,7 +310,7 @@ def search_item(search_option, value):
 def search_all(search_entry, search_combobox):
     treeview()
     search_entry.delete(0,'end')
-    search_combobox.set('Select...')
+    search_combobox.set('Select..')
 
 # Clear the highlight from the combobox. Trigger in the main function at the bottom.
 def on_select(event, combobox):
@@ -504,7 +496,7 @@ def orders_frame(parent, user_info):
                                          command= lambda:open_customization_popup(order_id=selected_order_id)
                                         )
 
-    customize_btn.grid(row=2, column=5)
+    
 
     def open_customization_popup(order_id=None):
         popup = tk.Toplevel()
@@ -651,7 +643,6 @@ def orders_frame(parent, user_info):
                                                                          user_info['full_name']
                                                                          )
                                                                   )
-    add_button.grid(row=0, column=0, padx=20)
 
     update_button = tk.Button(button_frame, text='Update', 
                                             font=('times new roman', 12), 
@@ -669,7 +660,6 @@ def orders_frame(parent, user_info):
                                                                          voltage_entry.get(),
                                                                          update=True)
                                                                   )
-    update_button.grid(row=0, column=1, padx=20)
 
     delete_button = tk.Button(button_frame, text='Delete', 
                                             font=('times new roman', 12), 
@@ -688,7 +678,6 @@ def orders_frame(parent, user_info):
                                                              voltage_entry,
                                                              delete=True)
                                                                 )
-    delete_button.grid(row=0, column=2, padx=20)
     
     # Clicking the clear button triggers the clear_fields() function and removes all data from the entry fields.
     clear_button = tk.Button(button_frame, text='Clear', 
@@ -708,7 +697,6 @@ def orders_frame(parent, user_info):
                                                              combobox3=product_type_combobox,
                                                              tab=True)
                                                                   )
-    clear_button.grid(row=0, column=3, padx=20)
     
     # When a field in treeview is clicked, the select_data() function fills the entry fields.
     orders_treeview.bind('<ButtonRelease-1>', lambda event: select_data(
@@ -722,6 +710,12 @@ def orders_frame(parent, user_info):
                                                              product_combobox,
                                                              product_type_combobox)
                                                             )
+    if user_info['role'] in ['manager', 'admin']:
+        customize_btn.grid(row=2, column=5)
+        add_button.grid(row=0, column=0, padx=20)
+        update_button.grid(row=0, column=1, padx=20)
+        clear_button.grid(row=0, column=3, padx=20)
+        delete_button.grid(row=0, column=4, padx=20)
 
     search_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, search_combobox))
     cust_type_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, cust_type_combobox))

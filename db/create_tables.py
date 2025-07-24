@@ -130,7 +130,8 @@ def ensure_tables_exist():
                     serial_number VARCHAR(100),
                     notes TEXT,        
                     build_start VARCHAR(25),    
-                    completed_at VARCHAR(25),     
+                    completed_at VARCHAR(25),
+                    playtester VARCHAR(100),     
                     FOREIGN KEY (order_id) REFERENCES orders(id),
                     FOREIGN KEY (product_id) REFERENCES products(id)
                 )"""
@@ -162,6 +163,19 @@ def ensure_tables_exist():
                     id INT PRIMARY KEY AUTO_INCREMENT,
                     product_id INT NOT NULL,
                     finished_quantity INT DEFAULT 0,
+                    FOREIGN KEY (product_id) REFERENCES products(id)
+                    )"""
+        )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS final_assembly (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    order_id INT NOT NULL,
+                    product_id INT NOT NULL,
+                    assembler_name VARCHAR(100),
+                    notes TEXT,
+                    assembly_complete VARCHAR(25),
+                    packed_at VARCHAR(25),
+                    FOREIGN KEY (order_id) REFERENCES orders(id),
                     FOREIGN KEY (product_id) REFERENCES products(id)
                     )"""
         )

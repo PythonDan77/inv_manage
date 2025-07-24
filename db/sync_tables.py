@@ -17,3 +17,20 @@ def sync_inventory_status():
               AND pr.id IS NULL
         """)
     conn.commit()
+
+def sync_final_assembly():
+    conn = get_conn()
+    with conn.cursor() as cur:
+        # Add to final_assembly only if amp & cabinet builds are complete and it's not already added
+        cur.execute("""
+            INSERT INTO final_assembly (order_id, product_id, assembly_complete)
+            SELECT o.id, o.product_id, NULL
+            FROM orders o
+            JOIN amplifier_builds ab ON o.id = ab.order_id
+            JOIN cabinet_builds cb ON o.id = cb.order_id
+            LEFT JOIN final_assembly fa ON o.id = fa.order_id
+            WHERE ab.status = 'Completed'
+              AND cb.status = 'Completed'
+              AND fa.id IS NULL
+        """)
+    conn.commit()

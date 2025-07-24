@@ -235,7 +235,7 @@ def search_item(search_option, value):
 def search_all(search_entry, search_combobox):
     treeview()
     search_entry.delete(0,'end')
-    search_combobox.set('Select...')
+    search_combobox.set('Select..')
 
 # Clear the highlight from the combobox. Trigger in the main function at the bottom.
 def on_select(event, combobox):
@@ -396,15 +396,15 @@ def cabinet_frame(parent, user_info):
                                                                   )
     update_button.grid(row=0, column=2, padx=20)
 
-    history_button = tk.Button(button_frame, text='History', 
-                                           font=('times new roman', 12), 
-                                           bg='#0f4d7d', 
-                                           fg='white', 
-                                           width= 10, 
-                                           cursor='hand2', 
-                                        #    command=lambda: row_select_check(complete=True)
-                                                                  )
-    history_button.grid(row=0, column=3, padx=20)
+    # history_button = tk.Button(button_frame, text='History', 
+    #                                        font=('times new roman', 12), 
+    #                                        bg='#0f4d7d', 
+    #                                        fg='white', 
+    #                                        width= 10, 
+    #                                        cursor='hand2', 
+    #                                     #    command=lambda: row_select_check(complete=True)
+    #                                                               )
+    # history_button.grid(row=0, column=3, padx=20)
 
     delete_button = tk.Button(button_frame, text='Delete', 
                                            font=('times new roman', 12), 
@@ -438,6 +438,6 @@ def cabinet_frame(parent, user_info):
 
     #Disable certain buttons if user permissions are not adequate
     if user_info['role'] in ['manager', 'admin']:
-        delete_button.grid(row=0, column=4, padx=20)
+        delete_button.grid(row=0, column=3, padx=20)
 
     return cabinet_frame
