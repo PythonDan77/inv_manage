@@ -179,3 +179,47 @@ def ensure_tables_exist():
                     FOREIGN KEY (product_id) REFERENCES products(id)
                     )"""
         )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS shipping (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    order_id INT UNIQUE, -- one shipping record per order
+                    notes TEXT,
+                    shipper VARCHAR(100),
+                    tracking VARCHAR(100),
+                    FOREIGN KEY (order_id) REFERENCES orders(id)
+                )"""
+        )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS shipping_history (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    order_id INT,
+                    product_name VARCHAR(100),
+                    customer_name VARCHAR(100),
+                    po_number VARCHAR(100),
+                    status VARCHAR(20), -- e.g. 'Shipped'
+                    notes TEXT,
+                    shipper VARCHAR(100),
+                    tracking VARCHAR(100),
+                    shipped_date DATETIME,
+                    shipped_by VARCHAR(100),
+                    FOREIGN KEY (order_id) REFERENCES orders(id)
+                )"""
+        )
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS build_history (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    order_id INT NOT NULL,
+                    product_name VARCHAR(100),
+                    product_type VARCHAR(50),  -- 'amplifier' or 'cabinet'
+                    customer_name VARCHAR(100),
+                    customer_po VARCHAR(50),
+                    voltage VARCHAR(20),               -- nullable for cabinets
+                    builder_name VARCHAR(100),         -- nullable for cabinets
+                    serial_number VARCHAR(100),        -- nullable for cabinets
+                    playtester VARCHAR(100),           -- nullable for cabinets
+                    assembler_name VARCHAR(100),
+                    assembly_complete VARCHAR(25),
+                    customizations TEXT,               -- serialized string like "Tolex: Red Python; Grill: Wheat"
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )"""
+        )

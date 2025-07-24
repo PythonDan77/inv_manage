@@ -396,16 +396,6 @@ def cabinet_frame(parent, user_info):
                                                                   )
     update_button.grid(row=0, column=2, padx=20)
 
-    # history_button = tk.Button(button_frame, text='History', 
-    #                                        font=('times new roman', 12), 
-    #                                        bg='#0f4d7d', 
-    #                                        fg='white', 
-    #                                        width= 10, 
-    #                                        cursor='hand2', 
-    #                                     #    command=lambda: row_select_check(complete=True)
-    #                                                               )
-    # history_button.grid(row=0, column=3, padx=20)
-
     delete_button = tk.Button(button_frame, text='Delete', 
                                            font=('times new roman', 12), 
                                            bg='#0f4d7d', 

@@ -38,28 +38,28 @@ def validate_form_inputs(customer_name, customer_type, po_num, product_id, produ
         messagebox.showerror('Empty Field', 'Select a Product Type.')
         return None
 
-    if not voltage:
-        messagebox.showerror('Empty Field', 'Voltage cannot be empty.')
-        return None
+    if product_type == 'Amplifier':
+        if not voltage:
+            messagebox.showerror('Empty Field', 'Voltage cannot be empty.')
+            return None
     
-    if product_type in ['Cabinet', 'Woodshop']:
-        voltage = '0'
+    if product_type in ['Cabinet']:
+        voltage = 'N/A'
 
     if product_type == 'Pedal':
         voltage = '9V DC'
+        if not qty:
+            messagebox.showerror('Empty Field', 'Qty cannot be empty.')
+            return None
 
-    if not qty:
-        messagebox.showerror('Empty Field', 'Qty cannot be empty.')
-        return None
+    if product_type in ['Amplifier', 'Cabinet']:
+        qty = 1
 
     try:
         qty = int(qty)
     except ValueError:
         messagebox.showerror("Validation Error", "Quantity must be a number.")
         return None
-
-    if product_type in ['Amplifier', 'Cabinet']:
-        qty = 1
 
     if not po_num:
         po_num = "0"
@@ -188,17 +188,19 @@ def add_update_item(customer_name, customer_type, po_num, product, product_type,
                     )
                     order_id = cur.lastrowid
 
-                    for custom in current_order_customizations:
-                        cur.execute("""
-                            INSERT INTO order_customizations (order_id, option_name, option_value, part_id, quantity)
-                            VALUES (%s, %s, %s, %s, %s)
-                        """, (
-                            order_id,
-                            custom["option_name"],
-                            custom["option_value"],
-                            custom["part_id"],
-                            custom["quantity"]
-                            ))
+                    if validated_data[4].lower() in ['amplifier', 'cabinet']:
+
+                        for custom in current_order_customizations:
+                            cur.execute("""
+                                INSERT INTO order_customizations (order_id, option_name, option_value, part_id, quantity)
+                                VALUES (%s, %s, %s, %s, %s)
+                            """, (
+                                order_id,
+                                custom["option_name"],
+                                custom["option_value"],
+                                custom["part_id"],
+                                custom["quantity"]
+                                ))
 
                     # Check if this order is for an amplifier and add data to the amplifier_builds table
                     if validated_data[4].lower() == 'amplifier':
@@ -239,6 +241,19 @@ def add_update_item(customer_name, customer_type, po_num, product, product_type,
                         """, (
                             order_id, product_id
                         ))
+
+                    # Check if this order is for a cabinet and add data to the cabinet_builds table
+                    if validated_data[4].lower() == 'cabinet':
+
+                        product_id = validated_data[3]
+                        notes = validated_data[7]
+
+                        # Insert into cabinet_builds for speaker cabs.
+                        cur.execute("""
+                            INSERT INTO cabinet_builds (
+                                order_id, product_id, status, notes, build_start, completed_at
+                            ) VALUES (%s, %s, %s, %s, '', '')
+                        """, (order_id, product_id,"Pending", notes))
                     
                     messagebox.showinfo('Success','Saved Successfully.')
             conn.commit()
@@ -465,7 +480,7 @@ def orders_frame(parent, user_info):
     
     product_type_label = tk.Label(detail_frame, text='Product type', font=('times new roman', 10, 'bold'), bg='white')
     product_type_label.grid(row=1, column=2, padx=10, pady=20)
-    product_type_combobox = ttk.Combobox(detail_frame, width=17, values=('Amplifier','Pedal', 'Cabinet', 'Woodshop'), 
+    product_type_combobox = ttk.Combobox(detail_frame, width=17, values=('Amplifier','Pedal', 'Cabinet'), 
                                                  font=('times new roman', 12), 
                                                  state='readonly'
                                                  )
@@ -487,7 +502,7 @@ def orders_frame(parent, user_info):
     voltage_entry = tk.Entry(detail_frame, font=('times new roman', 11), bg='lightyellow')
     voltage_entry.grid(row=2, column=3, padx=10, pady=20)
 
-    customize_btn = tk.Button(detail_frame, text='Configure Customizations', 
+    customize_btn = tk.Button(detail_frame, text='Amp/Cab Customizations', 
                                          font=('times new roman', 12), 
                                          bg='red', 
                                          fg='white', 

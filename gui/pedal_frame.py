@@ -79,47 +79,82 @@ def row_select_check(user_info, delete=False):
 
 def add_finished_quantity(status_combobox, qty_entry):
     selected_label = status_combobox.get()
-    quantity_str = qty_entry.get()
+    finished_qty = qty_entry.get()
 
     if not selected_label:
         messagebox.showerror("Input Error", "Please select a pedal.")
         return
 
-    if not quantity_str.isdigit():
+    if not finished_qty.isdigit():
         messagebox.showerror("Input Error", "Please enter a valid quantity.")
         return
 
-    quantity = int(quantity_str)
+    finished_qty = int(finished_qty)
     product_id = product_dict.get(selected_label)
 
     if product_id is None:
         messagebox.showerror("Error", "Selected product not found.")
         return
 
-    confirm = messagebox.askyesno("Confirm Quantity", f"Add {quantity} tested/etched and boxed {selected_label}?")
+    confirm = messagebox.askyesno("Confirm Quantity", f"Add {finished_qty} tested/etched and boxed {selected_label}(s)?")
     if not confirm:
         return
 
-    try:
-        conn = get_conn()
-        with conn.cursor() as cur:
-            # Update finished quantity by adding the new amount
-            cur.execute("""
-                UPDATE finished_pedals
-                SET finished_quantity = finished_quantity + %s
-                WHERE product_id = %s
-            """, (quantity, product_id))
-            conn.commit()
+    conn = get_conn()
+    with conn.cursor() as cur:
+        # Get required parts and current inventory
+        cur.execute("""
+            SELECT 
+                ii.id, 
+                ii.part_name,
+                ii.quantity AS current_qty,
+                bom.quantity_needed * %s AS total_needed
+            FROM bill_of_materials bom
+            JOIN inventory_items ii ON bom.part_id = ii.id
+            WHERE bom.product_id = %s
+        """, (finished_qty, product_id))
+        parts = cur.fetchall()
 
-        messagebox.showinfo("Success", f"Added {quantity} to finished quantity for {selected_label}.")
+        low_parts = []
 
-        # Optionally reset fields
-        qty_entry.delete(0, tk.END)
-        status_combobox.set("Select..")
-        sto_treeview()
+        # Insert into finished_pedals
+        cur.execute("""
+                    UPDATE finished_pedals
+                    SET finished_quantity = finished_quantity + %s
+                    WHERE product_id = %s
+                """, (finished_qty, product_id))
 
-    except Exception as e:
-        messagebox.showerror("Database Error", str(e))
+        # Deduct parts with sufficient inventory
+        for part_id, part_name, current_qty, total_needed in parts:
+            if current_qty >= total_needed:
+                cur.execute("""
+                    UPDATE inventory_items
+                    SET quantity = quantity - %s
+                    WHERE id = %s
+                """, (total_needed, part_id))
+            else:
+                cur.execute("""
+                    UPDATE inventory_items
+                    SET quantity =%s
+                    WHERE id = %s
+                """, (0, part_id))
+                low_parts.append((part_name, 0, total_needed))
+
+    conn.commit()
+
+    # Reset fields including stock treeview
+    qty_entry.delete(0, tk.END)
+    status_combobox.set("Select..")
+    sto_treeview()
+
+    # Show warning for parts not deducted
+    if low_parts:
+        warning = "Product added, but the following parts were not deducted due to low stock:\n\n"
+        for part_name, current_qty, total_needed in low_parts:
+            warning += f"- {part_name}: Have {current_qty}, needed {total_needed}\n"
+        messagebox.showwarning("Low Inventory Alert", warning)
+    else:
+        messagebox.showinfo("Success", f"{finished_qty} pedal(s) added and inventory updated.")
 
 
 def set_finished_quantity(status_combobox, qty_entry):

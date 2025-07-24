@@ -9,6 +9,7 @@ from gui.amplifier_frame import amplifier_frame
 from gui.cabinet_frame import cabinet_frame
 from gui.pedal_frame import pedal_frame
 from gui.final_assembly import final_assy_frame
+from gui.shipping_frame import shipping_frame
 from gui.asset_path import asset_path
 from db.sync_tables import sync_inventory_status, sync_final_assembly
 import time
@@ -171,7 +172,7 @@ def create_main_window(user_info):
                                            image=truck_png, 
                                            compound='left', 
                                            anchor='w',
-                                        #    command=lambda: forget_last(cabinet_frame, root, user_info)
+                                           command=lambda: forget_last(shipping_frame, root, user_info)
                                         )
     shipping_button.image = truck_png
     shipping_button.pack(fill='x')
