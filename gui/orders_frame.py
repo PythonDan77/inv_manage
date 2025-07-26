@@ -19,6 +19,219 @@ def treeview():
         for record in all_records:
             orders_treeview.insert('', 'end', values=record)
 
+# History tab that provides access to the table order_history.
+def history_popup():
+
+    popup = tk.Toplevel(bg='white')
+    popup.title("Order History")
+    popup.geometry("1150x650+400+250")
+    popup.transient()  # Keeps it on top
+    popup.grab_set()   # Modal behavior
+
+    history_treeview = None
+
+    heading_label = tk.Label(popup, text='Order History', font=('times new roman', 16, 'bold'), bg='#0f4d7d', fg='white')
+    heading_label.place(x=0, y=0, relwidth=1)
+
+    top_frame = tk.Frame(popup, width=1075, height=240, bg='white')
+    top_frame.place(x=0, y=75, relwidth=1)
+    
+    #Search Frame
+    search_frame = tk.Frame(top_frame, bg='white')
+    search_frame.pack()
+
+    # Function verifies data has been used to search the database and then retrieves the data.
+    def hist_search_item(search_option, value):
+        if search_option == 'Select..':
+            messagebox.showerror('Error','Select an option.')
+        elif not value:
+            messagebox.showerror('Error','Enter a value to search.')
+        else:
+            try:
+                search_option = search_option.replace(' ', '_')
+                conn = get_conn()
+                with conn.cursor() as cur:
+                    cur.execute(f'SELECT * FROM order_history WHERE {search_option} LIKE %s', f'%{value}%')
+                    result = cur.fetchall()
+                    history_treeview.delete(*history_treeview.get_children())
+                    for record in result:
+                        history_treeview.insert('', 'end', values=record)
+
+            except Exception as e:
+                messagebox.showerror("Database Error", str(e))
+
+    # Reloads all data and resets the search options.
+    def hist_search_all(search_entry, search_combobox):
+        hist_treeview()
+        search_entry.delete(0,'end')
+        search_combobox.set('Select..')
+
+    # Clear the highlight from the combobox. Trigger in the main function at the bottom.
+    def hist_on_select(event, combobox):
+        combobox.selection_clear()
+
+    #Drop Down Menu
+    search_combobox = ttk.Combobox(search_frame, values=('ID', 'customer name', 'customer po'), 
+                                                 font=('times new roman', 12), 
+                                                 state='readonly'
+                                                 )
+    search_combobox.set('Select..')
+    search_combobox.grid(row=0, column=0, padx=20)
+
+    #Entry Field
+    search_entry = tk.Entry(search_frame, font=('times new roman', 12), bg='lightyellow')
+    search_entry.grid(row=0, column=1)
+
+    search_button = tk.Button(search_frame, text='Search', 
+                                            font=('times new roman', 12), 
+                                            bg='#0f4d7d', 
+                                            fg='white', 
+                                            width= 10, 
+                                            cursor='hand2',
+                                            command= lambda: hist_search_item(search_combobox.get(),search_entry.get())
+                                            )
+    search_button.grid(row=0, column=2, padx=20)
+
+    show_button = tk.Button(search_frame, text='Show All', 
+                                          font=('times new roman', 12), 
+                                          bg='#0f4d7d', 
+                                          fg='white', 
+                                          width= 10, 
+                                          cursor='hand2',
+                                          command= lambda: hist_search_all(search_entry, search_combobox)
+                                          )
+    show_button.grid(row=0, column=3)
+
+    horizontal_scrollbar = tk.Scrollbar(top_frame, orient='horizontal')
+    vertical_scrollbar = tk.Scrollbar(top_frame, orient='vertical')
+    
+    history_treeview = ttk.Treeview(top_frame, columns=('id','customer_name', 'customer_po', 'product_name',
+                                                        'qty', 'notes', 'status', 'created_at', 
+                                                        'created_by'), 
+                                           show='headings',
+                                           yscrollcommand=vertical_scrollbar.set,
+                                           xscrollcommand=horizontal_scrollbar.set)
+    horizontal_scrollbar.pack(side='bottom', fill='x')
+    vertical_scrollbar.pack(side='right', fill='y', pady=(10, 0))
+    horizontal_scrollbar.config(command=history_treeview.xview)
+    vertical_scrollbar.config(command=history_treeview.yview)
+    history_treeview.pack(pady= (10, 0))
+    
+    history_treeview.heading('id', text='ID')
+    history_treeview.heading('customer_name', text='Customer name')
+    history_treeview.heading('customer_po', text='PO #')
+    history_treeview.heading('product_name', text='Product name')
+    history_treeview.heading('qty', text='Qty')
+    history_treeview.heading('notes', text='Notes')
+    history_treeview.heading('status', text='Status')
+    history_treeview.heading('created_at', text='Order created')
+    history_treeview.heading('created_by', text='Created by')
+    
+    history_treeview.column('id', width=120)
+    history_treeview.column('customer_name', width=175)
+    history_treeview.column('customer_po', width=175)
+    history_treeview.column('product_name', width=200)
+    history_treeview.column('qty', width=150)
+    history_treeview.column('notes', width=300)
+    history_treeview.column('status', width=175)
+    history_treeview.column('created_at', width=175)
+    history_treeview.column('created_by', width=200)
+
+    
+    def hist_treeview():
+        try:
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT * FROM order_history"""
+                )
+                all_records = cur.fetchall()
+                history_treeview.delete(*history_treeview.get_children())
+                for record in all_records:
+                    clean_record = ["" if field is None else field for field in record]
+                    history_treeview.insert('', 'end', values=clean_record)
+        except Exception as e:
+            messagebox.showerror("Database Error", str(e))
+    
+    #call treeview function to display the items.
+    hist_treeview()
+
+    button_frame= tk.Frame(popup, bg='white')
+    button_frame.place(x=400, y=500, relwidth=1)
+
+    def cancel():
+        popup.destroy()
+
+    close_button = tk.Button(button_frame, text='Close', 
+                                         font=('times new roman', 12), 
+                                         bg='#0f4d7d', 
+                                         fg='white', 
+                                         width= 10, 
+                                         cursor='hand2', 
+                                         command=cancel)
+                                                                  
+    close_button.grid(row=0, column=0, padx=20)
+
+    def export_purchase_history_to_csv():
+        try:
+            conn = get_conn()
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM order_history")
+                rows = cur.fetchall()
+                column_names = [desc[0] for desc in cur.description]
+
+            if not rows:
+                messagebox.showinfo("Export", "No data in order history.")
+                return
+
+            # Default filename
+            default_filename = f"order_history_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
+
+            # Path to user's Desktop
+            desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+
+            # Ask where to save the file
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv")],
+                initialfile=default_filename,
+                initialdir=desktop_path,
+                title="Save Order History As"
+            )
+
+            if not file_path:
+                return  # User cancelled
+
+            # Write the CSV file
+            with open(file_path, mode='w', newline='', encoding='utf-8') as file:
+                writer = csv.writer(file)
+                writer.writerow(column_names)  # headers
+                writer.writerows(rows)         # data
+
+            messagebox.showinfo("Export Successful", f"CSV file saved:\n{file_path}")
+
+            # Optionally open the file (Windows only)
+            try:
+                os.startfile(file_path)
+            except:
+                pass
+
+        except Exception as e:
+            messagebox.showerror("Export Error", str(e))
+
+    excel_button = tk.Button(button_frame, text='Excel Sheet', 
+                                         font=('times new roman', 12), 
+                                         bg='#0f4d7d', 
+                                         fg='white', 
+                                         width= 10, 
+                                         cursor='hand2', 
+                                         command=export_purchase_history_to_csv
+                                        )
+                                                                  
+    excel_button.grid(row=0, column=1, padx=20)
+
+    search_combobox.bind("<<ComboboxSelected>>", lambda event: hist_on_select(event, search_combobox))
+
 # Function used to verify all data in fields is present and of the right type.
 def validate_form_inputs(customer_name, customer_type, po_num, product_id, product_type, voltage, qty, notes):
     
@@ -102,8 +315,92 @@ def delete_item(customer_name, customer_type, po_num, product, product_type, qty
         except Exception as e:
             messagebox.showerror("Database Error", str(e))
 
+# Cancel an order. Add it to the order_history table. For amps and cabs, they can only be cancelled if they are pending.
+def cancel_order(order_id, product):
+    result = messagebox.askyesno('Confirm', 'Do you want to cancel this order?')
+    if not result:
+        return
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            # Fetch full order info
+            cur.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
+            order = cur.fetchone()
+            if not order:
+                messagebox.showerror("Error", "Order not found.")
+                return
+            product_type = order[5]
+            product_name = product.get()
+            product_id = order[4]
+            po_number = order[3]
+            customer_name = order[1]
+            quantity = order[7]
+            notes = order[8]
+            created_at = order[10]
+            created_by = order[11]
+
+            # PEDAL logic
+            if product_type == "Pedal":
+                cur.execute("DELETE FROM pedal_orders WHERE order_id = %s", (order_id,))
+                cur.execute("""
+                    INSERT INTO order_history (
+                        customer_name, po_number, product_name, quantity, 
+                        notes, status, created_at, created_by
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    customer_name, po_number, product_name, quantity,
+                    notes, "Cancelled", created_at, created_by
+                ))
+                cur.execute("DELETE FROM orders WHERE id = %s", (order_id,))
+                conn.commit()
+                messagebox.showinfo("Order Cancelled", "Pedal order was cancelled.")
+                return
+
+            # AMP or CAB logic
+            amp_ok = cab_ok = True
+
+            # Check amplifier build status
+            cur.execute("SELECT status FROM amplifier_builds WHERE order_id = %s", (order_id,))
+            amp = cur.fetchone()
+            
+            if amp and amp[0].lower() != "pending":
+                amp_ok = False
+
+            # Check cabinet build status
+            cur.execute("SELECT status FROM cabinet_builds WHERE order_id = %s", (order_id,))
+            cab = cur.fetchone()
+            if cab and cab[0].lower() != "pending":
+                cab_ok = False
+
+            if not amp_ok or not cab_ok:
+                messagebox.showerror("Cannot Cancel", "Build already started. Cannot cancel this order. Re-assign or mark 'internal' for inventory.")
+                return
+
+            # Safe to remove everything
+            cur.execute("DELETE FROM amplifier_builds WHERE order_id = %s", (order_id,))
+            cur.execute("DELETE FROM cabinet_builds WHERE order_id = %s", (order_id,))
+            cur.execute("DELETE FROM order_customizations WHERE order_id = %s", (order_id,))
+            cur.execute("DELETE FROM orders WHERE id = %s", (order_id,))
+
+            cur.execute("""
+                INSERT INTO order_history (
+                    customer_name, po_number, product_name, quantity,
+                    notes, status, created_at, created_by
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                customer_name, po_number, product_name, quantity,
+                notes, "Cancelled", created_at, created_by
+            ))
+
+            conn.commit()
+            messagebox.showinfo("Order Cancelled", "Order successfully cancelled and archived.")
+            treeview()
+
+    except Exception as e:
+        messagebox.showerror("Database Error", str(e))
+
 # Check to make sure a row is selected to either update or delete.
-def row_select_check(customer_name, customer_type, po_num, product, product_type, qty, notes, voltage, update=False, delete=False):
+def row_select_check(customer_name, customer_type, po_num, product, product_type, qty, notes, voltage, update=False, delete=False, cancel=False):
     
     selected = orders_treeview.selection()
     if not selected:
@@ -118,6 +415,8 @@ def row_select_check(customer_name, customer_type, po_num, product, product_type
         add_update_item(customer_name, customer_type, po_num, product, product_type, qty, notes, voltage, update=True, cur_id=id_num)
     elif delete:
         delete_item(customer_name, customer_type, po_num, product, product_type, qty, notes, voltage, id_num)
+    elif cancel:
+        cancel_order(id_num, product)
 
 # When all fields are filled and the add button is pressed, this function adds the items to the database.
 def add_update_item(customer_name, customer_type, po_num, product, product_type, qty, notes, voltage, user=None, update=False, cur_id=None):
@@ -385,6 +684,15 @@ def orders_frame(parent, user_info):
                                           command= lambda: search_all(search_entry, search_combobox))
     show_button.grid(row=0, column=3)
 
+    history_button = tk.Button(search_frame, text='History', 
+                                          font=('times new roman', 12), 
+                                          bg='#0f4d7d', 
+                                          fg='white', 
+                                          width= 10, 
+                                          cursor='hand2',
+                                          command= lambda: history_popup())
+    history_button.grid(row=0, column=4,padx=20)
+
     horizontal_scrollbar = tk.Scrollbar(top_frame, orient='horizontal')
     vertical_scrollbar = tk.Scrollbar(top_frame, orient='vertical')
     
@@ -639,7 +947,7 @@ def orders_frame(parent, user_info):
 
     #Lower button Frame
     button_frame= tk.Frame(orders_frame, bg='white')
-    button_frame.place(x=180, y=550, relwidth=1)
+    button_frame.place(x=140, y=550, relwidth=1)
 
     add_button = tk.Button(button_frame, text='Add', 
                                          font=('times new roman', 12), 
@@ -712,6 +1020,25 @@ def orders_frame(parent, user_info):
                                                              combobox3=product_type_combobox,
                                                              tab=True)
                                                                   )
+
+    # Clicking the clear button triggers the clear_fields() function and removes all data from the entry fields.
+    cancel_button = tk.Button(button_frame, text='Cancel Order', 
+                                           font=('times new roman', 12), 
+                                           bg='#0f4d7d', 
+                                           fg='white', 
+                                           width= 10, 
+                                           cursor='hand2', 
+                                           command=lambda: row_select_check(
+                                                             cust_name_entry,
+                                                             cust_type_combobox,
+                                                             po_entry,
+                                                             product_combobox,
+                                                             product_type_combobox,
+                                                             qty_entry,
+                                                             notes_entry,
+                                                             voltage_entry,
+                                                             cancel=True)
+                                                                  )
     
     # When a field in treeview is clicked, the select_data() function fills the entry fields.
     orders_treeview.bind('<ButtonRelease-1>', lambda event: select_data(
@@ -730,7 +1057,11 @@ def orders_frame(parent, user_info):
         add_button.grid(row=0, column=0, padx=20)
         update_button.grid(row=0, column=1, padx=20)
         clear_button.grid(row=0, column=3, padx=20)
-        delete_button.grid(row=0, column=4, padx=20)
+        cancel_button.grid(row=0, column=4, padx=20)
+        
+
+    if user_info['role'] in ['manager', 'admin']:
+        delete_button.grid(row=0, column=5, padx=20)
 
     search_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, search_combobox))
     cust_type_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, cust_type_combobox))

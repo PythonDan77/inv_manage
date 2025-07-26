@@ -109,6 +109,19 @@ def ensure_tables_exist():
                 )"""
         )
         cur.execute(
+            """CREATE TABLE IF NOT EXISTS order_history (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    customer_name VARCHAR(50),
+                    po_number VARCHAR(50),
+                    product_name VARCHAR(50),
+                    quantity INT,
+                    notes VARCHAR(50),
+                    status VARCHAR(50),
+                    created_at VARCHAR(20),
+                    created_by VARCHAR(50)
+                )"""
+        )
+        cur.execute(
             """CREATE TABLE IF NOT EXISTS order_customizations (
                     id INT PRIMARY KEY AUTO_INCREMENT,
                     order_id INT,

@@ -311,31 +311,6 @@ def history_popup():
 
     search_combobox.bind("<<ComboboxSelected>>", lambda event: hist_on_select(event, search_combobox))
 
-# def complete_item(cur_id, user_info):
-#     result = messagebox.askyesno('Confirm', 'Mark the item packed and ready for shipping? This cannot be undone')
-#     if result:
-#         try:
-#             set_date = datetime.today().strftime('%Y-%m-%d')
-#             conn = get_conn()
-#             with conn.cursor() as cur:
-#                 # First update the orders table (status)
-#                 cur.execute("""
-#                     UPDATE orders SET status = %s WHERE id = (
-#                         SELECT order_id FROM final_assembly WHERE id = %s
-#                     )
-#                 """, ("Packed", cur_id))
-
-#                 # Then update assembler name and assembly_start in final_assembly
-#                 cur.execute("""
-#                     UPDATE final_assembly SET packed_at = %s WHERE id = %s
-#                 """, (set_date, cur_id))
-#             conn.commit()
-#             treeview()
-
-#             messagebox.showinfo('Success','Build Completed.')
-#         except Exception as e:
-#             messagebox.showerror("Database Error", str(e))
-
 def complete_item(cur_id, user_info):
     result = messagebox.askyesno('Confirm', 'Mark the item packed and ready for shipping? This cannot be undone')
     if result:
@@ -742,6 +717,18 @@ def final_assy_frame(parent, user_info):
     
     if user_info['role'] in ['manager', 'admin']:
         delete_button.grid(row=0, column=4, padx=20)
+
+
+    def on_assembly_select(event):
+        selected = assy_treeview.selection()
+        if selected:
+            content_dict = assy_treeview.item(selected[0])
+            row_data = content_dict['values']
+
+            notes_entry.delete(0,tk.END)   
+            notes_entry.insert(0,row_data[6])
+
+    assy_treeview.bind("<<TreeviewSelect>>", on_assembly_select)
 
     search_combobox.bind("<<ComboboxSelected>>", lambda event: on_select(event, search_combobox))
 
